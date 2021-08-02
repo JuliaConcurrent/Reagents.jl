@@ -1,0 +1,65 @@
+struct Sequence{Outer<:Reagent,Inner<:Reagent} <: Reagent
+    outer::Outer
+    inner::Inner
+end
+
+then(r::Sequence, actr::Reactable) = then(r.outer, then(r.inner, actr))
+then(r::Reagent, actr::Reactable) = Reactor(r, actr)
+then(::Identity, actr::Reactable) = actr
+
+Reagents.Reagent(::Commit) = Identity()
+Reagents.Reagent(actr::Reactor) = actr.reagent ⨟ Reagent(actr.continuation)
+
+hascas(::Identity) = false
+
+struct Choice{R1<:Reagent,R2<:Reagent} <: Reagent
+    r1::R1
+    r2::R2
+end
+
+hascas(r::Choice) = hascas(r.r1) || hascas(r.r2)
+
+function tryreact!(actr::Reactor{<:Choice}, a, rx::Reaction, offer::Union{Offer,Nothing})
+    (; r1, r2) = actr.reagent
+    ans1 = tryreact!(then(r1, actr.continuation), a, rx, offer)
+    ans1 isa Failure || return ans1
+    ans2 = tryreact!(then(r2, actr.continuation), a, rx, offer)
+    ans2 isa Failure || return ans2
+    if ans1 isa Retry
+        return Retry()
+    else
+        return ans2
+    end
+end
+
+struct Both{R1<:Reagent,R2<:Reagent} <: Reagent
+    r1::R1
+    r2::R2
+end
+
+hascas(r::Both) = hascas(r.r1) || hascas(r.r2)
+
+function then(r::Both, actr::Reactable)
+    (; r1, r2) = r
+    function tee1(x)
+        function tee2(y1)
+            zip12(y2) = Return((y1, y2))
+            return Return(x) ⨟ r2 ⨟ Computed(zip12)
+        end
+        return Return(x) ⨟ r1 ⨟ Computed(tee2)
+    end
+    return then(Computed(tee1), actr)
+end
+
+Base.:∘(inner::Reagent, outer::Sequence) = (inner ∘ outer.inner) ∘ outer.outer
+Base.:∘(inner::Reagent, outer::Reagent) = Sequence(outer, inner)
+
+# `|` could be a bit misleading since `Choice` is rather `xor`
+Base.:|(r1::Reagent, r2::Reagent) = Choice(r1, r2)
+Base.:&(r1::Reagent, r2::Reagent) = Both(r1, r2)
+
+#=
+Base.:+(r1::Reagent, r2::Reagent) = Choice(r1, r2)
+Base.:>>(r1::Reagent, r2::Reagent) = r2 ∘ r1
+Base.:*(r1::Reagent, r2::Reagent) = Both(r1, r2)
+=#

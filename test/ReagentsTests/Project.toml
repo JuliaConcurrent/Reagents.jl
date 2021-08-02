@@ -1,0 +1,10 @@
+name = "ReagentsTests"
+uuid = "898c1cac-031f-4e89-a542-23d13fb5dfe5"
+authors = ["Takafumi Arakaki <aka.tkf@gmail.com> and contributors"]
+version = "0.0.1"
+
+[deps]
+ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Reagents = "88ee5918-12fa-4b16-93fd-f90ded6a9b8c"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
