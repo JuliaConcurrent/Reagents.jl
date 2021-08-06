@@ -5,7 +5,7 @@
 # further decompose the components in Reagents into the part concerining kCAS
 # and the part concerning synchronization ("offer").
 
-using Reagents: Block, CAS, Computed, Reagents, Return, maysucceed
+using Reagents: Block, CAS, Computed, Map, Reagents, Return, Until
 
 struct DualContainer{T,Items,Reservations}
     eltype::Val{T}
@@ -25,68 +25,97 @@ end
 function putting end
 function taking end
 
-# TODO: Expose put! and take! on DualContainer as reagent
+# To separate the reaction and synchronization, let us abstract out the
+# synchronizations as a "promise" that must be consumed one and exactly once.
 
-function Base.put!(dual::DualContainer{T}, x) where {T}
+abstract type LinearPromise{T} end
+
+struct Fulfilled{T} <: LinearPromise{T}
+    value::T
+end
+
+struct NeedWait{T} <: LinearPromise{T} end
+
+struct NeedSend{V} <: LinearPromise{Nothing}
+    task::Task
+    value::V
+end
+
+Base.fetch(p::Fulfilled) = p.value
+Base.fetch(::NeedWait{T}) where {T} = wait()::T
+function Base.fetch(p::NeedSend)
+    schedule(p.task, p.value)
+    return nothing
+end
+
+# (Note: For simplicity, there's no error check for the violation of the
+# "exactly once" condition ("linearity"). Furthermore, these promises must be
+# fetched right after the reaction manually.)
+
+Base.put!(dual::DualContainer, x) = fetch(promise_putting(dual, x)())
+Base.take!(dual::DualContainer) = fetch(promise_taking(dual)())
+
+function promise_putting(dual::DualContainer{T}, x) where {T}
     x = convert(T, x)
-    s = Some{T}(x)
-    ref = Reagents.Ref{Union{Nothing,Some{T}}}(s)
-    putting(dual.items)(ref)
-    task = take_and_cancel!(dual.reservations, CAS(ref, s, nothing))
-    if task === nothing
-        # Successfully "logically" stored the element in the item container.
-        # That is to say, no waiter `task` was observed.
-    else
-        schedule(task::Task, x)
-        @assert ref[] === nothing
-        # A waiter `task` is found and the item is removed from the item
-        # container.
-    end
-    return dual
-end
-
-function Base.take!(dual::DualContainer{T}) where {T}
-    task = current_task()
-    ref = Reagents.Ref{Union{Nothing,Task}}(task)
-    putting(dual.reservations)(ref)
-    x = take_and_cancel!(dual.items, CAS(ref, task, nothing))
-    if x === nothing
-        return wait()::T
-        # The CAS failure is always `Retry`. So, `nothing` here means that
-        # `taking(dual.item)` failed with `Block`.
-    else
-        @assert ref[] === nothing
-        return something(x)::T
-        # An item is found and the reservation is removed from the reservation
-        # container.
+    return annihilating(dual.reservations, dual.items, Some{T}(x)) ⨟ Map() do task
+        if task === nothing
+            # Successfully "logically" stored the element in the item container.
+            # That is to say, no waiter `task` was observed.
+            Fulfilled(nothing)
+        else
+            # A waiter `task` is found and the item is removed from the item
+            # container.
+            NeedSend{T}(task, x)
+        end
     end
 end
 
-function take_and_cancel!(dual, canceller)
-    takeblocking! =
-        trytaking(dual) ⨟ Computed() do found
-            found === nothing && return Return(nothing)
+promise_taking(dual::DualContainer{T}) where {T} =
+    annihilating(dual.items, dual.reservations, current_task()) ⨟ Map() do x
+        if x === nothing
+            # The CAS failure is always `Retry`. So, `nothing` here means that
+            # `taking(dual.item)` failed with `Block`.
+            NeedWait{T}()
+        else
+            # An item is found and the reservation is removed from the
+            # reservation container.
+            Fulfilled{T}(something(x))
+        end
+    end
+
+function annihilating(dual, self, selfvalue)
+    # First advertise that we have a value:
+    SelfRefType = eltype(self)::Type{<:Reagents.Ref}
+    selfref = SelfRefType(selfvalue)
+    putting(self)(selfref)
+
+    return (
+        Until(trytaking(dual)) do found
+            found === nothing && return missing
             dualref = something(found)
             x = dualref[]
             if x === nothing
-                return Return(missing)  # remove `dualref` from `dual`
-            elseif !maysucceed(canceller)
-                # self (`canceller.ref`) already consumed (not possible to
-                # cancel) so, `dualref` should not be consumed.
+                return nothing
+                # Cleaning up a stale ref in the opposite container; i.e., this
+                # `dualref` will be removed by committing `trytaking(dual)`.
+            else
+                return (dualref, x)
+            end
+        end ⨟
+        Computed() do found
+            found === missing && return Return(nothing)
+            dualref, x = found
+            if selfref[] !== selfvalue
+                # `selfref` already consumed (not possible to cancel) so,
+                # `dualref` should not be consumed.
                 return Block()
             else
-                return CAS(dualref, x, nothing) ⨟ canceller ⨟ Return(x)
+                return CAS(dualref, x, nothing) ⨟
+                       CAS(selfref, selfvalue, nothing) ⨟ Return(x)
             end
-        end
-    trytake! = takeblocking! | Return(nothing)
-    while true
-        x = trytake!()
-        if x === missing
-            continue
-        else
-            return x
-        end
-    end
+        end | # if blocked (i.e., `!maysucceed(canceller)`), then:
+        Return(nothing)
+    )
 end
 
 include("treiberstack.jl")
