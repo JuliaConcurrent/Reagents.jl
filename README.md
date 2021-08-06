@@ -79,7 +79,8 @@ Here, the element in the stack `s1` is popped and then pushed to the stack `s2`
 *atomically*. Similar code works with arbitrary pair of containers, possibly
 of different types.
 
-For more examples, see the `examples` directory.
+For more examples, see the [`examples`
+directory](https://github.com/tkf/Reagents.jl/tree/master/examples).
 
 ## Resources
 
