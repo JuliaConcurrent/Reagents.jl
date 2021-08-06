@@ -19,7 +19,6 @@ function (r::Reagent)(a::A) where {A}
         end
         ntries += 1
         istracing() && ntries > 1000 && error("too many retries")
-        ntries > 1000 && error("too many retries")
     end
 
     # with offer
@@ -57,18 +56,6 @@ function Base.wait(offer::Offer)
     end
     return
 end
-
-#=
-function putting(offer::Offer{T}, value::T) where {T}
-    Read(offer.state) ⨟ Computed() do old
-        if old isa Pending
-        elseif old isa Waiting
-        else
-            Retry()
-        end
-    end
-end
-=#
 
 function tryput!(offer::Offer{T}, value::T) where {T}
     old, success = cas_weak!(offer.state, Pending(), value)
