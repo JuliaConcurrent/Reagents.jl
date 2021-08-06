@@ -1,9 +1,8 @@
 # Reagents.jl: Towards composable and extensible nonblocking programming for Julia
 
 Reagents.jl implements *reagents* (Turon, 2012) which provides higher-order
-concurrency primitives for expressing nonblocking algorithms and concurrent
-synchronizations in a composable manner.  It provides a way to combine
-*nonblocking* and *synchronizing* operations.
+concurrency primitives for expressing *nonblocking* algorithms and concurrent
+*synchronizations* in a composable manner.
 
 For example, `op1 | op2` is the combinator that combines the "lazy"
 representation of operations (called *reagents*) and expresses that only one of
@@ -78,7 +77,7 @@ push!(s1, 1)
 
 Here, the element in the stack `s1` is popped and then pushed to the stack `s2`
 *atomically*. Similar code works with arbitrary pair of containers, possibly
-of different type.
+of different types.
 
 For more examples, see the `examples` directory.
 
