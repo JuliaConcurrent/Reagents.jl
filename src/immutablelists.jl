@@ -7,7 +7,7 @@ const ImmutableList{T} = Union{ImmutableListNode{T},Nothing}
 
 @inline pushfirst(list, @nospecialize(value)) = ImmutableListNode(value, list)
 
-Base.convert(::Type{ImmutableList{T}}, list::ImmutableListNode) where {T} =
+Base.convert(::Type{ImmutableListNode{T}}, list::ImmutableListNode) where {T} =
     ImmutableListNode{T}(list.value, list.tail)
 
 ilist(xs...) = foldr(ImmutableListNode, xs; init = nothing)
