@@ -101,7 +101,7 @@ include("channels.jl")
 end  # module Internal
 
 module __Reagents_API__
-using ..Reagents: Reagents
+using ..Reagents
 export ⨟, compose, opcompose, Reagents
 
 module DefaultNames end

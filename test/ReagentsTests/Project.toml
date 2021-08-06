@@ -4,6 +4,7 @@ authors = ["Takafumi Arakaki <aka.tkf@gmail.com> and contributors"]
 version = "0.0.1"
 
 [deps]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 ArgCheck = "dce04be8-c92d-5529-be00-80e4d2c0e197"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Reagents = "88ee5918-12fa-4b16-93fd-f90ded6a9b8c"
