@@ -80,4 +80,36 @@ function test_multi_swap(spawn::Bool, nrepeat = spawn ? 1000 : 1)
     @test (y1, y2, y3) == (3, 1, 2) .+ 100nrepeat
 end
 
+function test_simple_choice()
+    @testset for spawn in [false, true]
+        test_simple_choice(spawn)
+    end
+end
+
+function test_simple_choice(spawn::Bool, nrepeat = spawn ? 1000 : 1)
+    a2b, b2a = Reagents.channel(Int, Nothing)
+    c2d, d2c = Reagents.channel(Int, Nothing)
+    ok = true
+    concurrently(
+        function receiver()
+            for i in 1:nrepeat
+                y = (b2a | d2c)()
+                ok &= y == i
+                ok || error("receiver failed: got $y")
+            end
+        end,
+        function sender()
+            for i in 1:nrepeat
+                if rand() > 0.5
+                    a2b(i)
+                else
+                    c2d(i)
+                end
+            end
+        end,
+        spawn = spawn,
+    )
+    @test ok
+end
+
 end  # module
