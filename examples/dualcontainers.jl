@@ -83,35 +83,35 @@ promise_taking(dual::DualContainer{T}) where {T} =
         end
     end
 
-function annihilating(dual, self, selfvalue)
+function annihilating(opposite, self, selfvalue)
     # First advertise that we have a value:
     SelfRefType = eltype(self)::Type{<:Reagents.Ref}
     selfref = SelfRefType(selfvalue)
     putting(self)(selfref)
 
     return (
-        Until(trytaking(dual)) do found
+        Until(trytaking(opposite)) do found
             found === nothing && return missing
-            dualref = something(found)
-            x = dualref[]
-            if x === nothing
+            oppsref = something(found)
+            oppsvalue = oppsref[]
+            if oppsvalue === nothing
                 return nothing
                 # Cleaning up a stale ref in the opposite container; i.e., this
-                # `dualref` will be removed by committing `trytaking(dual)`.
+                # `oppref` will be removed by committing `trytaking(opposite)`.
             else
-                return (dualref, x)
+                return (oppsref, oppsvalue)
             end
         end ⨟
         Computed() do found
             found === missing && return Return(nothing)
-            dualref, x = found
+            oppsref, oppsvalue = found
             if selfref[] !== selfvalue
                 # `selfref` already consumed (not possible to cancel) so,
-                # `dualref` should not be consumed.
+                # `oppref` should not be consumed.
                 return Block()
             else
-                return CAS(dualref, x, nothing) ⨟
-                       CAS(selfref, selfvalue, nothing) ⨟ Return(x)
+                return CAS(oppsref, oppsvalue, nothing) ⨟
+                       CAS(selfref, selfvalue, nothing) ⨟ Return(oppsvalue)
             end
         end | # if blocked (i.e., `!maysucceed(canceller)`), then:
         Return(nothing)
@@ -128,8 +128,8 @@ putting(c::MSQueue) = pushing(c)
 trytaking(c::MSQueue) = trypoppingfirst(c)
 
 # Any concurrent data structures that define `putting` and `trytaking` reagents
-# can be used for the data and reservation (dual) containers. For example, we
-# get the following four combinations of blocking data structure.
+# can be used for the data and reservation containers. For example, we get the
+# following four combinations of synchronizable data structure.
 
 dual_queue(T) = dualcontainer(T, MSQueue)
 dual_stack(T) = dualcontainer(T, TreiberStack)
