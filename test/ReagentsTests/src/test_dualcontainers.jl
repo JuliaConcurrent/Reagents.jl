@@ -109,15 +109,20 @@ function test_many_items(constructor, spawn::Bool, nrepeat = 1000)
     end
 
     nsenders = 5
-    nfinished = Threads.Atomic{Int}(0)  # not using a task for this for `concurrently`
+    nfinished = Threads.Atomic{Int}(0)
     senders = map(1:nsenders) do i
         function sender_task()
             for j in 1:nrepeat
                 put!(c, nsenders * (j - 1) + i)
             end
             if Threads.atomic_add!(nfinished, 1) + 1 == nsenders
+                # Note: using `nfinished` instead of using a task that waits for
+                # all senders, so that we can use a single `run_concurrently`
+                # call (to make debugging easier).
+
                 sleep(0.2)  # TODO: don't do this; support `close`
                 # `sleep` here is just a "hint" but it's still bad...
+
                 for _ in receivers
                     put!(c, sentinel)
                 end

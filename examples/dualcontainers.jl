@@ -1,10 +1,6 @@
 # Generic dual container inspired by Izraelevitz & Scott (2017) "Generality and
 # Speed in Nonblocking Dual Containers."
 
-# TODO: The following construction is suggesting that it may be possible to
-# further decompose the components in Reagents into the part concerining kCAS
-# and the part concerning synchronization ("offer").
-
 using Reagents: Block, CAS, Computed, Map, Reagents, Return, Until
 
 struct DualContainer{T,Items,Reservations}

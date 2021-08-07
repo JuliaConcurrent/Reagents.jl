@@ -15,6 +15,7 @@ Bag() = Bag{Any}()
 Bag{T}() where {T} = Bag{T}(nothing)
 
 Base.eltype(::Type{Bag{T}}) where {T} = T
+Base.IteratorSize(::Type{<:Bag}) = Base.SizeUnknown()
 
 function isdeleted end
 
@@ -22,6 +23,15 @@ function Base.iterate(bag::Bag, (prev, curr) = (bag, @atomic bag.next))
     curr === nothing && return nothing
     next = @atomic curr.next
     while isdeleted(curr.value)
+        if curr.value isa Message
+            @trace(
+                label = :cleaning_offer,
+                offerid = offerid(curr.value.offer),
+                taskid = objectid(current_task()),
+                offer = curr.value.offer,
+                msgs = bag,
+            )
+        end
         # `prev` may be phisically removed while `curr` is phisically removed.
         # But this is OK since `curr` is already logically removed.
         # TODO: check this
@@ -42,7 +52,15 @@ function Base.push!(bag::Bag{T}, v) where {T}
     while true
         next, success = @atomicreplace(bag.next, next => node)
         success && return bag
+        node = BagNode{T}(next, v)
     end
+end
+
+function Base.in(v::T, bag::Bag{T}) where {T}
+    for x in bag
+        x === v && return true
+    end
+    return false
 end
 
 function tryremove!(bag::Bag{T}, item::T) where {T}

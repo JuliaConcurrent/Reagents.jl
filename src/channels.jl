@@ -36,7 +36,17 @@ function tryreact!(
     a = convert(A, a)
     (; msgs, dual) = actr.reagent
     if offer !== nothing  # && !maysync(actr.continuation)
-        push!(msgs, Message{A}(a, rx, actr.continuation, offer))
+        let m = Message{A}(a, rx, actr.continuation, offer)
+            push!(msgs, m)
+            @trace(
+                label = :pushed_offer,
+                offerid = offerid(offer),
+                taskid = objectid(current_task()),
+                still_in_msg = m in msgs,
+                offer,
+                msgs,
+            )
+        end
     end
     retry = false
     for msg in dual
@@ -44,7 +54,16 @@ function tryreact!(
             continue
         end
         ans = tryreact_together!(msg, actr.continuation, a, rx, offer)
-        @trace msg ans a rx offer taskid = objectid(current_task())
+        @trace(
+            label = :done_tryreact_together,
+            offerid = offerid(offer),
+            taskid = objectid(current_task()),
+            msg,
+            ans,
+            a,
+            rx,
+            offer,
+        )
         if ans isa Retry
             retry = true
         elseif ans isa Block
@@ -68,7 +87,7 @@ function tryreact_together!(msg::Message, k::Reactable, a, rx, offer)
             offer_state = old,
             taskid = objectid(current_task()),
             dual_taskid = objectid(dual_offer.task),
-            offerid = objectid(dual_offer.state),
+            offerid = offerid(dual_offer),
         )
         # if old isa Pending
         #     return CAS(dual_offer.state, old, b)

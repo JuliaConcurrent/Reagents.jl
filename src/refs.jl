@@ -60,6 +60,11 @@ function cas!(ref::GenericRef{T}, expected::T, desired::T) where {T}
 end
 
 Base.getindex(ref::GenericRef{T}) where {T} = something(tryget(ref))
+function Base.setindex!(ref::GenericRef{T}, x::T) where {T}
+    # Using CAS to avoid overwriting `CASing`.
+    cas_weak!(ref, ref[], x)
+    return ref
+end
 
 function tryget(ref::GenericRef{T}) where {T}
     while true

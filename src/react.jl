@@ -49,7 +49,7 @@ function Base.wait(offer::Offer)
         @trace(
             label = :start_wait,
             taskid = objectid(current_task()),
-            offerid = objectid(offer.state),
+            offerid = offerid(offer),
         )
         wait()
         @trace(label = :stop_wait, taskid = objectid(current_task()))
@@ -84,7 +84,13 @@ function tryreact!(::Commit, a, rx::Reaction, offer::Union{Offer,Nothing})
     let ans = rescind!(offer)
         ans === nothing || return something(ans)
     end
-    @trace(label = :commit, taskid = objectid(current_task()), rx)
+    @trace(
+        label = :commit,
+        taskid = objectid(current_task()),
+        offerid = offerid(offer),
+        offer,
+        rx
+    )
     if commit!(rx)
         hooks = rx.postcommithooks
         if hooks !== nothing
