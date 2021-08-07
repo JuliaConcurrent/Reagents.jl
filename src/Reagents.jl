@@ -58,6 +58,11 @@ struct Map{F} <: Reagent
     f::F
 end
 
+struct Until{F, R <: Reagent} <: Reagent
+    f::F
+    reagent::R
+end
+
 struct PostCommit{F} <: Reagent
     f::F
 end
@@ -85,6 +90,7 @@ using ..Reagents:
     Reagents,
     Retry,
     Return,
+    Until,
     Update
 
 include("utils.jl")

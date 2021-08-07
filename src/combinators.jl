@@ -63,3 +63,57 @@ Base.:+(r1::Reagent, r2::Reagent) = Choice(r1, r2)
 Base.:>>(r1::Reagent, r2::Reagent) = r2 ∘ r1
 Base.:*(r1::Reagent, r2::Reagent) = Both(r1, r2)
 =#
+
+struct UntilBegin{R<:Reactor} <: Reagent
+    loop::R
+end
+
+hascas(r::UntilBegin) = hascas(r.loop)
+
+struct UntilEnd{F,R<:Reactable} <: Reagent
+    f::F
+    continuation::R  # used only for `hascas`
+end
+
+hascas(r::UntilEnd) = hascas(r.continuation)
+
+struct UntilBreak{T,Rx<:Reaction}
+    value::T
+    rx::Rx
+end
+
+then(r::Until, actr::Reactable) =
+    then(UntilBegin(then(r.reagent, then(UntilEnd(r.f, actr), Commit()))), actr)
+
+function tryreact!(
+    actr::Reactor{<:UntilBegin},
+    a,
+    rx::Reaction,
+    offer::Union{Offer,Nothing},
+)
+    (; loop) = actr.reagent
+    while true
+        ans = tryreact!(loop, a, Reaction(), nothing)
+        if ans isa UntilBreak
+            return tryreact!(actr.continuation, ans.value, combine(rx, ans.rx), offer)
+        elseif ans isa Block
+            error("`Until(f, reagent)` does not support blocking `reagent`")
+        elseif ans isa Failure
+            GC.safepoint()
+            # TODO: backoff
+        else
+            ans::Nothing
+        end
+    end
+end
+
+function tryreact!(actr::Reactor{<:UntilEnd}, a, rx::Reaction, offer::Union{Offer,Nothing})
+    (; f) = actr.reagent
+    b = f(a)
+    if b === nothing
+        # Commit the reaction
+        return tryreact!(actr.continuation, nothing, rx, offer)
+    else
+        return UntilBreak(b, rx)
+    end
+end
