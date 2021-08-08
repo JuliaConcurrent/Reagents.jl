@@ -58,7 +58,7 @@ struct Map{F} <: Reagent
     f::F
 end
 
-struct Until{F, R <: Reagent} <: Reagent
+struct Until{F,R<:Reagent} <: Reagent
     f::F
     reagent::R
 end
