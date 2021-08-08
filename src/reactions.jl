@@ -13,6 +13,9 @@ end
 Offer{T}() where {T} =
     Offer(Reagents.Ref{OfferState{T}}(Pending()), current_task())::Offer{T}
 
+offerid(offer::Offer) = objectid(offer.state)
+offerid(::Nothing) = UInt(0)
+
 struct Reaction
     caslist::ImmutableList{CAS}
     offers::ImmutableList{Offer}
