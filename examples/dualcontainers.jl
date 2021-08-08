@@ -22,7 +22,7 @@ function putting end
 function taking end
 
 # To separate the reaction and synchronization, let us abstract out the
-# synchronizations as a "promise" that must be consumed one and exactly once.
+# synchronizations as a "promise" that must be consumed once and exactly once.
 
 abstract type LinearPromise{T} end
 

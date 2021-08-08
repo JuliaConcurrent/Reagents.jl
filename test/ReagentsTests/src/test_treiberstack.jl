@@ -77,7 +77,7 @@ function test_paired_pop_push()
     s1 = TreiberStack{Int}()
     s2 = TreiberStack{Int}()
     push!(s1, 1)
-    (trypopping(s1) ⨟  Reagents.Map(something) ⨟ pushing(s2))()
+    (trypopping(s1) ⨟ Reagents.Map(something) ⨟ pushing(s2))()
     @test pop!(s2) == 1
 end
 
