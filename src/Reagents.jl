@@ -94,6 +94,7 @@ using ..Reagents:
 include("utils.jl")
 include("immutablelists.jl")
 include("tracing.jl")
+include("anchors.jl")
 include("reactions.jl")
 include("react.jl")
 include("combinators.jl")

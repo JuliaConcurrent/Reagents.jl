@@ -7,6 +7,7 @@ function (r::Reagent)(a::A) where {A}
     # without offer
     while true
         ans = tryreact!(actr, a, Reaction(), nothing)
+        anchor(:tryreact_without_offer, (; ans))
         if ans isa Block
             break
         elseif ans isa Retry
@@ -25,6 +26,7 @@ function (r::Reagent)(a::A) where {A}
     while true
         offer = Offer{Any}()  # TODO: narrow type
         ans = tryreact!(actr, a, Reaction(), offer)
+        anchor(:tryreact_with_offer, (; ans, offer))
         if ans isa Block
             wait(offer)
         elseif ans isa Retry
@@ -91,6 +93,7 @@ function tryreact!(::Commit, a, rx::Reaction, offer::Union{Offer,Nothing})
         offer,
         rx
     )
+    anchor(:commit, (; offer, rx))
     if commit!(rx)
         hooks = rx.postcommithooks
         if hooks !== nothing
