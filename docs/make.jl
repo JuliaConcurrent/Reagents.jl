@@ -110,6 +110,7 @@ makedocs(
     modules = [Reagents],
     pages = PAGES,
     doctest = false,  # tested via test/runtests.jl
+    checkdocs = :exports,  # ignore complains about `Reagents.:*`
     strict = lowercase(get(ENV, "CI", "false")) == "true",
     # See: https://juliadocs.github.io/Documenter.jl/stable/lib/public/#Documenter.makedocs
 )
