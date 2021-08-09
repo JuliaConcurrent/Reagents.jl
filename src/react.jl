@@ -25,7 +25,7 @@ function (r::Reagent)(a::A) where {A}
             return ans
         end
         ntries += 1
-        istracing() && ntries > 1000 && error("too many retries")
+        should_limit_retries() && ntries > 1000 && error("too many retries")
     end
 
     # with offer
@@ -50,7 +50,7 @@ function (r::Reagent)(a::A) where {A}
             ans === nothing || return something(ans)
         end
         ntries += 1
-        istracing() && ntries > 1000 && error("too many retries")
+        should_limit_retries() && ntries > 1000 && error("too many retries")
     end
 end
 

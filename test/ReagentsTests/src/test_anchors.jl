@@ -3,6 +3,7 @@ module TestAnchors
 using Reagents
 using Reagents.Internal: withanchor, nextanchor!, finish!, Offer, Reaction
 using Test
+using ..TestCancellableContainers: blocking_treiberstack
 
 function module_context(f)
     Reagents.Internal.use_anchors() && return f()
@@ -63,6 +64,24 @@ function test_simple_race()
     @test ref1[] == 333
     @test ref2[] == 444
     @test finish!(a1) === nothing
+end
+
+function test_blocking_treiberstack_late_take_win()
+    can_test() || return
+    b = blocking_treiberstack(Int)
+    a1 = withanchor(==(:commit)) do
+        put!(b, 111)
+    end
+    a2 = withanchor(==(:commit)) do
+        take!(b)
+    end
+    nextanchor!(a1)
+    nextanchor!(a2)
+    @test b.data.head[] === nothing
+    @test finish!(a2) == 111
+    @test b.data.head[] === nothing
+    @test finish!(a1) === nothing
+    @test b.data.head[] === nothing
 end
 
 end  # module
