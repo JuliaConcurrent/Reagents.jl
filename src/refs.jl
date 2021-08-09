@@ -41,7 +41,7 @@ end
 
 GenericRef{T}() where {T} = GenericRef{T}(NotSet())
 
-function cas_weak!(ref::GenericRef{T}, expected::T, desired::T) where {T}
+function cas_weak!(ref::GenericRef{T}, expected::Union{T,NotSet}, desired::T) where {T}
     (old, success) = @atomicreplace ref.value expected => desired
     return (; old, success)
 end
@@ -62,7 +62,7 @@ end
 Base.getindex(ref::GenericRef{T}) where {T} = something(tryget(ref))
 function Base.setindex!(ref::GenericRef{T}, x::T) where {T}
     # Using CAS to avoid overwriting `CASing`.
-    cas_weak!(ref, ref[], x)
+    cas_weak!(ref, something(tryget(ref), NotSet()), x)
     return ref
 end
 

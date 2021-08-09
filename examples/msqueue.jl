@@ -1,3 +1,7 @@
+# # [Example: Michael and Scott queue](@id ex-msqueue)
+#
+# WIP (TODO: add explanation)
+
 using Reagents
 
 struct MSQNode{T,R}

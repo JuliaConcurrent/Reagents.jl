@@ -1,5 +1,10 @@
+# # Dual data structures
+#
 # Generic dual container inspired by Izraelevitz & Scott (2017) "Generality and
 # Speed in Nonblocking Dual Containers."
+
+# TODO: maybe it's better to generalize `Reagents.channel` over the underlying
+# bag?
 
 using Reagents: Block, CAS, Computed, Map, Reagents, Return, Until
 
@@ -79,6 +84,9 @@ promise_taking(dual::DualContainer{T}) where {T} =
         end
     end
 
+# TODO: Izraelevitz & Scott (2017) has the property that the at most one of the
+# subcontainers is nonempty. Does the algorithm below has something similar?
+
 function annihilating(opposite, self, selfvalue)
     # First advertise that we have a value:
     SelfRefType = eltype(self)::Type{<:Reagents.Ref}
@@ -106,10 +114,11 @@ function annihilating(opposite, self, selfvalue)
                 # `oppref` should not be consumed.
                 return Block()
             else
-                return CAS(oppsref, oppsvalue, nothing) ⨟
-                       CAS(selfref, selfvalue, nothing) ⨟ Return(oppsvalue)
+                return CAS(oppsref, oppsvalue, nothing) ⨟ # Delete the opposite entry
+                       CAS(selfref, selfvalue, nothing) ⨟ # ...and the self entry atomically
+                       Return(oppsvalue)
             end
-        end | # if blocked (i.e., `!maysucceed(canceller)`), then:
+        end | # if blocked (i.e., `selfref[] !== selfvalue`), then:
         Return(nothing)
     )
 end
@@ -168,4 +177,4 @@ function test_quack_waiter_is_lifo()
     @test fetch(t1) == 333
 end
 
-# See ../test/ReagentsTests/src/test_dualcontainers.jl for more usage
+# See `../test/ReagentsTests/src/test_dualcontainers.jl` for more usage

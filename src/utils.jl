@@ -43,10 +43,17 @@ function define_docstrings()
         name in names(Reagents, all = true) || continue
         push!(docstrings, name => joinpath(docsdir, filename))
     end
+    n_auto_labels = 0
     for (name, path) in docstrings
+        label = string(name)
+        if match(r"^[a-z0-9_]+$"i, label) === nothing
+            label = "reagent$n_auto_labels"
+            n_auto_labels += 1
+        end
+
         include_dependency(path)
         doc = read(path, String)
-        doc = transform_docstring(doc, name)
+        doc = transform_docstring(doc, label)
         @eval Reagents $Base.@doc $doc $name
     end
 end

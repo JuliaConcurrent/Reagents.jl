@@ -44,8 +44,6 @@ struct CAS{T,R<:Ref{T}} <: Reagent
     new::T
 end
 
-maysucceed(cas::CAS) = cas.ref[] === cas.old
-
 struct Return{T} <: Reagent
     value::T
 end
@@ -105,6 +103,10 @@ include("bags.jl")
 include("channels.jl")
 
 end  # module Internal
+
+# For defining the docstrings
+const (|) = Internal.Base.:|
+const (&) = Internal.Base.:&
 
 module __Reagents_API__
 using ..Reagents
