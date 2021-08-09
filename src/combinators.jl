@@ -19,10 +19,21 @@ end
 
 hascas(r::Choice) = hascas(r.r1) || hascas(r.r2)
 
+_maysync(r::Reagent) = maysync(then(r, Commit()))
+_hascas(r::Reagent) = hascas(then(r, Commit()))
+
 function tryreact!(actr::Reactor{<:Choice}, a, rx::Reaction, offer::Union{Offer,Nothing})
     (; r1, r2) = actr.reagent
     ans1 = tryreact!(then(r1, actr.continuation), a, rx, offer)
     ans1 isa Failure || return ans1
+    if offer === nothing
+        if _maysync(r1) && _hascas(r2)
+            # If the first branch may synchronize, and the second branch has a
+            # CAS, we need to simultaneously rescind the offer *and* commit the
+            # CASes.
+            return Block()
+        end
+    end
     ans2 = tryreact!(then(r2, actr.continuation), a, rx, offer)
     ans2 isa Failure || return ans2
     if ans1 isa Retry

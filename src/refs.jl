@@ -5,7 +5,7 @@ end
 
 function tryreact!(actr::Reactor{<:CAS}, a, rx::Reaction, offer::Union{Offer,Nothing})
     (; ref, old, new) = actr.reagent
-    if !hascas(rx) && !hascas(actr.continuation)
+    if offer === nothing && !hascas(rx) && !hascas(actr.continuation)
         if cas_weak!(ref, old, new).success
             return tryreact!(actr.continuation, a, rx, offer)
         else
