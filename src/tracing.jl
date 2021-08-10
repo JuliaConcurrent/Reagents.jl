@@ -36,3 +36,19 @@ function disable_tracing()
     @eval istracing() = false
     return prev
 end
+
+should_limit_retries() = istracing() || use_anchors() || use_retrylimit()
+
+use_retrylimit() = false
+
+function enable_retrylimit()
+    prev = use_retrylimit()
+    @eval use_retrylimit() = true
+    return prev
+end
+
+function disable_retrylimit()
+    prev = use_retrylimit()
+    @eval use_retrylimit() = false
+    return prev
+end

@@ -7,6 +7,12 @@ function (r::Reagent)(a::A) where {A}
     # without offer
     while true
         ans = tryreact!(actr, a, Reaction(), nothing)
+        @trace(
+            label = :tryreact_without_offer,
+            taskid = objectid(current_task()),
+            offerid = offerid(nothing),
+            ans
+        )
         anchor(:tryreact_without_offer, (; ans))
         if ans isa Block
             break
@@ -19,13 +25,19 @@ function (r::Reagent)(a::A) where {A}
             return ans
         end
         ntries += 1
-        istracing() && ntries > 1000 && error("too many retries")
+        should_limit_retries() && ntries > 1000 && error("too many retries")
     end
 
     # with offer
     while true
         offer = Offer{Any}()  # TODO: narrow type
         ans = tryreact!(actr, a, Reaction(), offer)
+        @trace(
+            label = :tryreact_with_offer,
+            taskid = objectid(current_task()),
+            offerid = offerid(offer),
+            ans
+        )
         anchor(:tryreact_with_offer, (; ans, offer))
         if ans isa Block
             wait(offer)
@@ -38,7 +50,7 @@ function (r::Reagent)(a::A) where {A}
             ans === nothing || return something(ans)
         end
         ntries += 1
-        istracing() && ntries > 1000 && error("too many retries")
+        should_limit_retries() && ntries > 1000 && error("too many retries")
     end
 end
 
@@ -83,8 +95,19 @@ function rescind!(offer::Offer)
 end
 
 function tryreact!(::Commit, a, rx::Reaction, offer::Union{Offer,Nothing})
-    let ans = rescind!(offer)
-        ans === nothing || return something(ans)
+    if offer isa Offer
+        ans = offer.state[]
+        if ans isa Pending
+            # Rescinding `offer` as part of commit, to keep the `offer` alive
+            # until the last moment. This is required when CASes and channel
+            # swaps are in multiple branches of `Choice`.
+            # TODO: Check if this is OK. It's different from the paper.
+            rx = withcas(rx, CAS(offer.state, Pending(), Rescinded()))
+        elseif ans isa OfferFlags
+            return Retry()
+        else
+            return ans
+        end
     end
     @trace(
         label = :commit,

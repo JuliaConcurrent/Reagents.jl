@@ -89,9 +89,8 @@ function tryreact_together!(msg::Message, k::Reactable, a, rx, offer)
             dual_taskid = objectid(dual_offer.task),
             offerid = offerid(dual_offer),
         )
-        # if old isa Pending
-        #     return CAS(dual_offer.state, old, b)
-        if old isa Union{Waiting,Pending}
+        old isa Union{Waiting,Pending} || return Retry()
+        function fulfil_dual_offer(old)
             function wake_dual(_)
                 @trace(
                     label = :wake_dual,
@@ -100,17 +99,15 @@ function tryreact_together!(msg::Message, k::Reactable, a, rx, offer)
                 )
                 schedule(dual_offer.task)
             end
-            return CAS(dual_offer.state, Waiting(), b) ⨟ PostCommit(wake_dual)
-            #                            ~~~~~~~~~ not a typo
-            # Since this continuation itself can later be shared with others via
-            # swap, and the state may be changed to `Waiting`, and there is no
-            # way to re-structure the CAS list, we need to always CAS from
-            # `Waiting`.
-            # TODO: Add `BeforeRetry` hook to the `Reaction` protcol or
-            # something so that we can re-construct the CAS list on retry?
-        else
-            return Retry()
+            if old isa Pending
+                return CAS(dual_offer.state, old, b)
+            elseif old isa Waiting
+                return CAS(dual_offer.state, old, b) ⨟ PostCommit(wake_dual)
+            else
+                return Retry()
+            end
         end
+        return Read(dual_offer.state) ⨟ Computed(fulfil_dual_offer)
     end
     actr = then(
         Reagent(msg.continuation) ⨟  # execute the dual continuation with `a` as the input
