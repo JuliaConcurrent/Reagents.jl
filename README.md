@@ -1,5 +1,7 @@
 # Reagents.jl: Towards composable and extensible nonblocking programming for Julia
 
+[![docs dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://tkf.github.io/Reagents.jl/dev)
+
 Reagents.jl implements *reagents* (Turon, 2012) which provides higher-order
 concurrency primitives for expressing *nonblocking* algorithms and concurrent
 *synchronizations* in a composable manner.
@@ -79,8 +81,8 @@ Here, the element in the stack `s1` is popped and then pushed to the stack `s2`
 *atomically*. Similar code works with arbitrary pair of containers, possibly
 of different types.
 
-For more examples, see the [`examples`
-directory](https://github.com/tkf/Reagents.jl/tree/master/examples).
+For more examples, read [**the documentation**](https://tkf.github.io/Reagents.jl/dev)
+or see the [`examples` directory](https://github.com/tkf/Reagents.jl/tree/master/examples).
 
 ## Resources
 
