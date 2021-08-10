@@ -12,11 +12,11 @@ using Reagents: Block, CAS, Computed, Map, Read, Reagents, Return
 # When a value is not available in a nonblocking container, it is very useful to
 # wait (*block*) until the value is available (as in
 # [`Base.Channel`](https://docs.julialang.org/en/v1/base/parallel/#Base.Channel)).
-# Using [`Reagents.channel`](@ref) (which is like unbuffered `Base.Channel`), we
-# can *mechanically* transform a nonblocking data container to a waitable data
-# structure.
+# Using [`Reagents.channel`](@ref) (which we use here like an unbuffered
+# `Base.Channel`), we can *mechanically* transform a nonblocking concurrent
+# data container to a waitable data structure.
 #
-# To this end, let us define a simple wrapper type that wraps underlying
+# To this end, let us define a simple wrapper type that wraps an underlying
 # nonblocking data collection (`.data`) and the channel (`.send` and
 # `.receive`):
 
@@ -36,8 +36,8 @@ Base.eltype(::Type{<:Blocking{T}}) where {T} = T
 
 # The idea is to try sending or receiving the item via the channel and *"then"*
 # try to manipulate the data collection. We can do this *atomically* by using
-# the choice reagent [`|`](@ref Reagents.:|).  Note that the order of this
-# operation is importnat. For example, when invoking `putting(b)`, it tries
+# the choice reagent [`|`](@ref Reagents.:|). Note that the order of this
+# operation is important. For example, when invoking `putting(b)`, it tries
 # `b.send` first and this "attempt" is still active even during
 # `putting(b.data)`. Since this attempt to `b.send` is atomically withdrawn when
 # committing the reaction, the item is added to the data collection if and only
@@ -57,13 +57,13 @@ include("treiberstack.jl")
 include("msqueue.jl")
 
 # To this end, we need to transform `trypopping` and `trypoppingfirst` to a
-# reagent that blocks when the item is not ready.  It can be done by this simple
-# helper reagent that blocks when the input is `nothing`:
+# reagent that blocks when the item is not ready. This can be done by
+# a simple helper reagent that blocks when the input is `nothing`:
 
 blocknothing() = Map(x -> x === nothing ? Block() : something(x))
 
-# Then, it is straightforward to define the API required for the `Blocking`
-# wrapper:
+# Then, it is straightforward to define the `taking` and `putting` functions
+# required by the `Blocking` wrapper:
 
 putting(c::TreiberStack) = pushing(c)
 taking(c::TreiberStack) = trypopping(c) ⨟ blocknothing()
@@ -88,7 +88,7 @@ function test_put_take_queue()
 
     #=
     However, when `take!` is invoked on an empty collection (which is enforced
-    by the "unfair scheduling" `yield(::Task)`), it blocks until the
+    by the "unfair scheduling" `yield(t)`), it blocks until the
     corresponding `put!` is invoked:
     =#
     t = @task take!(items)
@@ -114,8 +114,11 @@ end
 
 # ## Generic cancellable operations
 #
-# It is often useful to cancel blocking operation safely. It can be expressed by
-# reagents quite naturally.
+# It is often useful to cancel a blocking operation safely. This can be
+# expressed quite naturally using reagents — we'll create a CancellationToken
+# which can be composed with any blocking operation. The pattern is similar to
+# [the Go idiom of listening to a `Done` channel](https://pkg.go.dev/context)
+# as one of the blocking operations in a `select` statement.
 #
 # First, let us define a singleton sentinel value for indicating a given
 # reaction is cancelled:
@@ -128,7 +131,7 @@ function test_cancellation_idea()
     items = Blocking(MSQueue{Int}())
 
     #=
-    We use additonal channel for sending cancellation signal:
+    We use an additional channel for sending the cancellation signal:
     =#
     send, receive = Reagents.channel(Cancelled, Nothing)
 
@@ -173,7 +176,7 @@ end
 
 # We can then transform an arbitrary reagent to a reagent that can be cancelled
 # via a "signal" through `CancellationToken` (defined in `cancel!` below). The
-# resulting reagent is the compostion of three components: `listener`,
+# resulting reagent is the composition of three components: `listener`,
 # `checker`, and the original `reagent`:
 
 function cancellable(reagent::Reagents.Reagent, token::CancellationToken)
@@ -200,10 +203,10 @@ end
 
 cancellable_take!(b::Blocking, token::CancellationToken) = cancellable(taking(b), token)()
 
-# To fire the cancellation signal, we first set `iscancelled[]`. This way, all
+# To `cancel!` a `token`, we first set `iscancelled[]`. This way, all
 # future `cancellable_take!` returns `Cancelled` due to the `checker` reagent
 # defined above. We then clear out any existing peers listening to the
-# `toeken.receive` swap endpoint.
+# `token.receive` swap endpoint.
 
 function cancel!(token::CancellationToken)
     token.iscancelled[] = true
@@ -227,7 +230,7 @@ function test_cancellation_token()
     @test fetch(t) == 111
 
     #=
-    Calling `cancel!(token)` cancells all `cancellable_take!(items, token)`
+    Calling `cancel!(token)` cancels all `cancellable_take!(items, token)`
     calls that are already happening (waiting for an item) and also the calls
     happening after the cancellation.
     =#

@@ -1,6 +1,9 @@
 # # [Example: Michael and Scott queue](@id ex-msqueue)
 #
 # WIP (TODO: add explanation)
+#
+# https://www.cs.rochester.edu/u/scott/papers/1996_PODC_queues.pdf
+#
 
 using Reagents
 
