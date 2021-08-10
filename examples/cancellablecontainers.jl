@@ -117,8 +117,8 @@ end
 # It is often useful to cancel a blocking operation safely. This can be
 # expressed quite naturally using reagents — we'll create a CancellationToken
 # which can be composed with any blocking operation. The pattern is similar to
-# the golang idiom of listening to a `Done` channel as one of the blocking
-# operations in a `select` statement.
+# [the Go idiom of listening to a `Done` channel](https://pkg.go.dev/context)
+# as one of the blocking operations in a `select` statement.
 #
 # First, let us define a singleton sentinel value for indicating a given
 # reaction is cancelled:
