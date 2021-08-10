@@ -9,6 +9,7 @@ include("test_dualcontainers.jl")
 include("test_channels.jl")
 include("test_cancellablecontainers.jl")
 include("test_anchors.jl")
+include("test_dissolve.jl")
 include("test_doctest.jl")
 include("test_aqua.jl")
 

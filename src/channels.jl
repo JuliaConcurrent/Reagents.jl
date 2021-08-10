@@ -47,6 +47,8 @@ function tryreact!(
                 msgs,
             )
         end
+        # Avoid spinning in `(re)dissolve`:
+        offer isa Catalyst && return Block()
     end
     retry = false
     for msg in dual
@@ -65,6 +67,7 @@ function tryreact!(
             offer,
         )
         if ans isa Retry
+            maybe_redissolve!(msg)
             retry = true
         elseif ans isa Block
             # continue
