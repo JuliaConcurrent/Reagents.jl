@@ -4,7 +4,7 @@
 Create a reference storing a value of type `T`.
 
 Use reagents such as [`Reagents.Update`](@ref), [`Reagents.CAS`](@ref), and
-[`Reagents.Read`](@ref) to manipulate
+[`Reagents.Read`](@ref) to manipulate the value.
 
 # Example
 

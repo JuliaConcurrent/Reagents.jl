@@ -3,6 +3,8 @@
 Create a pair of swap endpoints for exchanging a value `a` of type `A` and a
 value `b` of type `B` *synchronously*.
 
+The endpoints `a2b` and `b2a` are reagents.
+
 # Example
 
 ```julia
