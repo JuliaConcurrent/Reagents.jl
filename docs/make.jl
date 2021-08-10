@@ -17,6 +17,7 @@ PAGES = [
         "Michael and Scott queue" => "tutorials/msqueue.md",
         "Cancellable containers" => "tutorials/cancellablecontainers.md",
         "Catalysts" => "tutorials/catalysts.md",
+        "Locks" => "tutorials/locks.md",
     ],
     # "How-to guides" => [
     #     "" => "howto/.md",

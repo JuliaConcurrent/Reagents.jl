@@ -1,7 +1,7 @@
     Reagents.PostCommit(f)
 
-Run `f(output)` when the reagent successfully completed its reaction with
-`output`.
+Run `f(x)` when the reagent successfully completed its reaction where `x` is the
+output of the upstream reagent.
 
 # Examples
 
