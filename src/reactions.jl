@@ -2,18 +2,20 @@ struct Pending end
 struct Rescinded end
 struct Waiting end
 
-const OfferFlags = Union{Pending,Rescinded,Waiting}
-const OfferState{T} = Union{Pending,Rescinded,Waiting,T}
+const WaiterFlags = Union{Pending,Rescinded,Waiting}
+const WaiterState{T} = Union{Pending,Rescinded,Waiting,T}
 
-struct Offer{T,State<:Reagents.Ref{OfferState{T}}}
+struct Waiter{T,State<:Reagents.Ref{WaiterState{T}}}
     state::State
     task::Base.Task
 end
 
-Offer{T}() where {T} =
-    Offer(Reagents.Ref{OfferState{T}}(Pending()), current_task())::Offer{T}
+Waiter{T}() where {T} =
+    Waiter(Reagents.Ref{WaiterState{T}}(Pending()), current_task())::Waiter{T}
 
-offerid(offer::Offer) = objectid(offer.state)
+const Offer = Waiter
+
+offerid(offer::Waiter) = objectid(offer.state)
 offerid(::Nothing) = UInt(0)
 
 struct Reaction

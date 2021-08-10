@@ -1,7 +1,7 @@
 module TestAnchors
 
 using Reagents
-using Reagents.Internal: withanchor, nextanchor!, finish!, Offer, Reaction
+using Reagents.Internal: withanchor, nextanchor!, finish!, Reaction
 using Test
 using ..TestCancellableContainers: blocking_treiberstack
 
