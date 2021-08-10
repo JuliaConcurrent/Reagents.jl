@@ -36,7 +36,7 @@ Base.eltype(::Type{<:Blocking{T}}) where {T} = T
 
 # The idea is to try sending or receiving the item via the channel and *"then"*
 # try to manipulate the data collection. We can do this *atomically* by using
-# the [choice reagent `|`](@ref Reagents.:|). Note that the order of this
+# the choice reagent [`|`](@ref Reagents.:|). Note that the order of this
 # operation is important. For example, when invoking `putting(b)`, it tries
 # `b.send` first and this "attempt" is still active even during
 # `putting(b.data)`. Since this attempt to `b.send` is atomically withdrawn when
