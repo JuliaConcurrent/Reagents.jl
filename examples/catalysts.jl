@@ -1,4 +1,4 @@
-# # Catalysts
+# # [Catalysts](@id catalysts)
 #
 # A *catalyst* can be introduced by [`Reagents.dissolve`](@ref) for expressing a
 # rule under which a certain set of reactions can happen.

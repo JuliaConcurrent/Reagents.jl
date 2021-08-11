@@ -139,5 +139,6 @@ function tryreact!(
     offer::Union{Offer,Nothing},
 )
     (; f) = actr.reagent
-    return tryreact!(actr.continuation, a, withpostcommit(rx, f), offer)
+    after_commit(_) = f(a)
+    return tryreact!(actr.continuation, a, withpostcommit(rx, after_commit), offer)
 end
