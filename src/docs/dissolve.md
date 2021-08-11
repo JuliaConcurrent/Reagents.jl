@@ -5,9 +5,9 @@ Register `catalyst` as a persistent reagent that helps other reaction.
 The reagent `catalyst` must include a blocking reagent (i.e.,
 [`Reagents.channel`](@ref)).
 
-# Examples
+For more information, see [Catalysts](@ref catalysts) section in the manual.
 
-`Reagents.dissolve` is useful when associating multiple channels:
+# Examples
 
 ```julia
 julia> using Reagents

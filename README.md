@@ -89,15 +89,16 @@ or see the [`examples` directory](https://github.com/tkf/Reagents.jl/tree/master
 * Turon, Aaron. 2012. “Reagents: Expressing and Composing Fine-Grained
   Concurrency.” In Proceedings of the 33rd ACM SIGPLAN Conference on Programming
   Language Design and Implementation, 157–168. PLDI ’12. New York, NY, USA:
-  Association for Computing Machinery. https://doi.org/10.1145/2254064.2254084.
+  Association for Computing Machinery. <https://doi.org/10.1145/2254064.2254084>.
 
 * The original implementation by Turon (2012):
-  https://github.com/aturon/ChemistrySet
+  <https://github.com/aturon/ChemistrySet>
 
 * Sivaramakrishnan, KC, and Théo Laurent. “Lock-Free Programming for the
-  Masses,” https://kcsrk.info/papers/reagents_ocaml16.pdf
+  Masses,” <https://kcsrk.info/papers/reagents_ocaml16.pdf>
 
 * [LDN Functionals #8 KC Sivaramakrishnan: OCaml multicore and programming with
   Reagents - YouTube](https://www.youtube.com/watch?v=qRWTws_YPBA)
 
-* Reagent implementation for OCaml: https://github.com/ocaml-multicore/reagents
+* Reagent implementation for OCaml:
+  <https://github.com/ocaml-multicore/reagents>

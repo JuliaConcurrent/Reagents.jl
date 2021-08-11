@@ -1,4 +1,6 @@
 hascas(::Computed) = true  # maybe
+maysync(::Computed) = true  # maybe
+# TODO: check if `maysync(::Computed) == maysync(::Map) == true` is required/correct
 
 function tryreact!(actr::Reactor{<:Computed}, a, rx::Reaction, offer::Union{Offer,Nothing})
     (; f) = actr.reagent
@@ -13,6 +15,7 @@ function tryreact!(actr::Reactor{<:Computed}, a, rx::Reaction, offer::Union{Offe
 end
 
 hascas(::Return) = false
+maysync(r::Return) = r.value isa Block
 
 function tryreact!(actr::Reactor{<:Return}, _, rx::Reaction, offer::Union{Offer,Nothing})
     (; value) = actr.reagent
@@ -21,6 +24,7 @@ function tryreact!(actr::Reactor{<:Return}, _, rx::Reaction, offer::Union{Offer,
 end
 
 hascas(::Map) = false
+maysync(::Map) = true  # maybe
 
 function tryreact!(actr::Reactor{<:Map}, a, rx::Reaction, offer::Union{Offer,Nothing})
     (; f) = actr.reagent
