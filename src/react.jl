@@ -30,7 +30,7 @@ function (r::Reagent)(a::A) where {A}
 
     # with offer
     while true
-        offer = Offer{Any}()  # TODO: narrow type
+        offer = Waiter{Any}()  # TODO: narrow type
         ans = tryreact!(actr, a, Reaction(), offer)
         @trace(
             label = :tryreact_with_offer,
@@ -58,7 +58,7 @@ Reagents.try(r::Reagent, a = nothing) = ((r ⨟ Map(Some)) | Return(nothing))(a)
 
 hascas(actr::Reactor) = hascas(actr.reagent) || hascas(actr.continuation)
 
-function Base.wait(offer::Offer)
+function Base.wait(offer::Waiter)
     if cas_weak!(offer.state, Pending(), Waiting()).success
         @trace(
             label = :start_wait,
@@ -71,7 +71,7 @@ function Base.wait(offer::Offer)
     return
 end
 
-function tryput!(offer::Offer{T}, value::T) where {T}
+function tryput!(offer::Waiter{T}, value::T) where {T}
     old, success = cas_weak!(offer.state, Pending(), value)
     success && return true
     old isa Rescinded && return false
@@ -87,15 +87,15 @@ function tryput!(offer::Offer{T}, value::T) where {T}
 end
 
 rescind!(::Nothing) = nothing
-function rescind!(offer::Offer)
+function rescind!(offer::Waiter)
     (old, success) = cas!(offer.state, Pending(), Rescinded())
     # success && return nothing
-    old isa OfferFlags && return nothing
+    old isa WaiterFlags && return nothing
     return Some(old)
 end
 
 function tryreact!(::Commit, a, rx::Reaction, offer::Union{Offer,Nothing})
-    if offer isa Offer
+    if offer isa Waiter
         ans = offer.state[]
         if ans isa Pending
             # Rescinding `offer` as part of commit, to keep the `offer` alive
@@ -103,7 +103,7 @@ function tryreact!(::Commit, a, rx::Reaction, offer::Union{Offer,Nothing})
             # swaps are in multiple branches of `Choice`.
             # TODO: Check if this is OK. It's different from the paper.
             rx = withcas(rx, CAS(offer.state, Pending(), Rescinded()))
-        elseif ans isa OfferFlags
+        elseif ans isa WaiterFlags
             return Retry()
         else
             return ans

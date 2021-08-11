@@ -66,6 +66,7 @@ struct PostCommit{F} <: Reagent
 end
 
 function channel end
+function dissolve end
 
 struct _TryFunction <: Function end
 const var"try" = _TryFunction()
@@ -102,6 +103,7 @@ include("computational.jl")
 include("refs.jl")
 include("bags.jl")
 include("channels.jl")
+include("dissolve.jl")
 
 end  # module Internal
 

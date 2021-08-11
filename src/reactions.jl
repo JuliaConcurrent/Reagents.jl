@@ -2,18 +2,30 @@ struct Pending end
 struct Rescinded end
 struct Waiting end
 
-const OfferFlags = Union{Pending,Rescinded,Waiting}
-const OfferState{T} = Union{Pending,Rescinded,Waiting,T}
+const WaiterFlags = Union{Pending,Rescinded,Waiting}
+const WaiterState{T} = Union{Pending,Rescinded,Waiting,T}
 
-struct Offer{T,State<:Reagents.Ref{OfferState{T}}}
+struct Waiter{T,State<:Reagents.Ref{WaiterState{T}}}
     state::State
     task::Base.Task
 end
 
-Offer{T}() where {T} =
-    Offer(Reagents.Ref{OfferState{T}}(Pending()), current_task())::Offer{T}
+Waiter{T}() where {T} =
+    Waiter(Reagents.Ref{WaiterState{T}}(Pending()), current_task())::Waiter{T}
 
-offerid(offer::Offer) = objectid(offer.state)
+const CatalystFlags = Union{Pending,Rescinded}
+const CatalystState{T} = Union{Pending,Rescinded,T}
+
+struct Catalyst{T,State<:Reagents.Ref{CatalystState{T}}}
+    state::State
+end
+
+Catalyst{T}() where {T} = Catalyst(Reagents.Ref{CatalystState{T}}(Pending()))::Catalyst{T}
+
+const Offer{T} = Union{Waiter{T},Catalyst{T}}
+
+offerid(offer::Waiter) = objectid(offer.state)
+offerid(::Catalyst) = UInt(1)
 offerid(::Nothing) = UInt(0)
 
 struct Reaction
@@ -64,6 +76,14 @@ function setall!(list::ImmutableListNode{CAS})
 end
 
 commit!(rx::Reaction) = setcasing!(rx.caslist) && setall!(rx.caslist)
+
+has_stale_cas(rx::Reaction) = has_stale_cas(rx.caslist)
+has_stale_cas(::Nothing) = false
+function has_stale_cas(list::ImmutableListNode{CAS})
+    (; ref, old) = list.value
+    value = @atomic ref.value
+    return value !== old
+end
 
 struct Commit end
 
