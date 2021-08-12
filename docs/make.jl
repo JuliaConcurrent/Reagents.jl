@@ -18,6 +18,7 @@ PAGES = [
         "Cancellable containers" => "tutorials/cancellablecontainers.md",
         "Catalysts" => "tutorials/catalysts.md",
         "Locks" => "tutorials/locks.md",
+        "Negative acknowledgement (NACK)" => "tutorials/nack.md",
     ],
     # "How-to guides" => [
     #     "" => "howto/.md",

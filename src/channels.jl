@@ -69,7 +69,7 @@ function tryreact!(
         if ans isa Retry
             maybe_redissolve!(msg)
             retry = true
-        elseif ans isa Block
+        elseif ans isa SomehowBlocked
             # continue
         else
             return ans

@@ -1,10 +1,10 @@
 module Utils
 
-function with_log_on_error(f)
+function with_log_on_error(f, name = f)
     try
         return f()
     catch err
-        @error "Error from `$f`" exception = (err, catch_backtrace())
+        @error "Error from `$name`" exception = (err, catch_backtrace())
         rethrow()
     end
 end
@@ -54,6 +54,24 @@ function random_sleep(spawn::Bool = true)
     else
         sleep(rand() / 1_000_000)
     end
+end
+
+macro spawn_named(name, spawn, ex = undef)
+    if ex === undef
+        ex = spawn
+        spawn = true
+    end
+    quote
+        if $spawn
+            $Threads.@spawn $with_log_on_error($name) do
+                $ex
+            end
+        else
+            $Base.@async $with_log_on_error($name) do
+                $ex
+            end
+        end
+    end |> esc
 end
 
 end  # module

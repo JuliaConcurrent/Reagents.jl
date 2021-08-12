@@ -14,7 +14,10 @@ function (r::Reagent)(a::A) where {A}
             ans
         )
         anchor(:tryreact_without_offer, (; ans))
-        if ans isa Block
+        if ans isa SomehowBlocked
+            if ans isa NeedNack
+                runpostcommithooks(ans, nothing)
+            end
             break
         elseif ans isa Retry
             GC.safepoint()  # once(backoff)?
@@ -39,7 +42,7 @@ function (r::Reagent)(a::A) where {A}
             ans
         )
         anchor(:tryreact_with_offer, (; ans, offer))
-        if ans isa Block
+        if ans isa SomehowBlocked
             wait(offer)
         elseif ans isa Retry
             yield()  # once(backoff)?
@@ -51,6 +54,9 @@ function (r::Reagent)(a::A) where {A}
         end
         ntries += 1
         should_limit_retries() && ntries > 1000 && error("too many retries")
+        if ans isa NeedNack
+            runpostcommithooks(ans, nothing)
+        end
     end
 end
 
@@ -118,15 +124,19 @@ function tryreact!(::Commit, a, rx::Reaction, offer::Union{Offer,Nothing})
     )
     anchor(:commit, (; offer, rx))
     if commit!(rx)
-        hooks = rx.postcommithooks
-        if hooks !== nothing
-            for f in hooks
-                f(a)
-            end
-        end
+        runpostcommithooks(rx, a)
         return a
     else
         return Retry()
+    end
+end
+
+function runpostcommithooks(rx, @nospecialize(a))
+    hooks = rx.postcommithooks
+    if hooks !== nothing
+        for f in hooks
+            f(a)
+        end
     end
 end
 

@@ -15,7 +15,7 @@ function tryreact!(actr::Reactor{<:Computed}, a, rx::Reaction, offer::Union{Offe
 end
 
 hascas(::Return) = false
-maysync(r::Return) = r.value isa Block
+maysync(r::Return) = r.value isa SomehowBlocked
 
 function tryreact!(actr::Reactor{<:Return}, _, rx::Reaction, offer::Union{Offer,Nothing})
     (; value) = actr.reagent

@@ -2,7 +2,9 @@ function Reagents.dissolve(reagent::Reagent)
     offer = Catalyst{Any}()  # TODO: narrow type
     actr = then(reagent ⨟ PostCommit(ReDissolve(reagent)), Commit())
     ans = tryreact!(actr, nothing, Reaction(), offer)
-    if !(ans isa Block)
+    if ans isa NeedNack
+        error("WithNack reagent cannot be dissolved")
+    elseif !(ans isa Block)
         error("non-blocking reagent cannot be dissolved")
     end
 end
