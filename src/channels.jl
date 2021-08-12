@@ -47,6 +47,14 @@ function tryreact!(
                 msgs,
             )
         end
+    else
+        @trace(
+            label = :swap_without_offer,
+            offerid = offerid(offer),
+            taskid = objectid(current_task()),
+            offer,
+            msgs,
+        )
     end
     retry = false
     for msg in dual
@@ -117,4 +125,13 @@ function tryreact_together!(msg::Message, k::Reactable, a, rx, offer)
         k,
     )
     return tryreact!(actr, a, withoffer(combine(rx, msg.reaction), msg.offer), offer)
+end
+
+function Base.show(io::IO, ::MIME"text/plain", @nospecialize(swap::Swap{A,B})) where {A,B}
+    nsenders = nitems(swap.msgs)
+    nreceivers = nitems(swap.dual)
+    print(io, "<Swap ", A, " → ", B, ": ")
+    print(io, nsenders, " sender(s) ")
+    print(io, nreceivers, " receiver(s)")
+    print(io, '>')
 end

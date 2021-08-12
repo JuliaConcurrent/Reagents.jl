@@ -76,6 +76,20 @@ function tryget(ref::GenericRef{T}) where {T}
     end
 end
 
+function Base.show(io::IO, @nospecialize(ref::GenericRef{T})) where {T}
+    if get(io, :typeinfo, Any) === typeof(ref)
+        show(io, Reagents.Ref)
+    else
+        show(io, Reagents.Ref{T})
+    end
+    print(io, '(')
+    value = tryget(ref)
+    if value !== nothing
+        show(io, something(value))
+    end
+    print(io, ')')
+end
+
 #=
 mutable struct InlineRef{T,Storage} <: Reagents.Ref{T}
     @atomic value::Storage

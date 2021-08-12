@@ -1,5 +1,6 @@
 (r::Reagent)() = r(nothing)
 function (r::Reagent)(a::A) where {A}
+    @trace(label = :begin_react, taskid = objectid(current_task()))
     # backoff = Backoff()
     actr = then(r, Commit())
     ntries = 0

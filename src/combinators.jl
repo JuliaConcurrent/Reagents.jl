@@ -27,6 +27,17 @@ _hascas(r::Reagent) = hascas(then(r, Commit()))
 function tryreact!(actr::Reactor{<:Choice}, a, rx::Reaction, offer::Union{Offer,Nothing})
     (; r1, r2) = actr.reagent
     ans1 = tryreact!(then(r1, actr.continuation), a, rx, offer)
+    @trace(
+        label = :tried_choice1,
+        offerid = offerid(offer),
+        taskid = objectid(current_task()),
+        ans = ans1,
+        a,
+        rx,
+        offer,
+        maysync_r1 = _maysync(r1),
+        hascas_r2 = _hascas(r2),
+    )
     ans1 isa Failure || return ans1
     if offer === nothing
         if _maysync(r1) && _hascas(r2)
@@ -36,6 +47,15 @@ function tryreact!(actr::Reactor{<:Choice}, a, rx::Reaction, offer::Union{Offer,
             # If the first branch may synchronize, and the second branch has a
             # CAS, we need to simultaneously rescind the offer *and* commit the
             # CASes.
+            @trace(
+                label = :block_choice,
+                offerid = offerid(offer),
+                taskid = objectid(current_task()),
+                ans = ans1,
+                a,
+                rx,
+                offer,
+            )
             return Block()
         end
     end
@@ -47,6 +67,15 @@ function tryreact!(actr::Reactor{<:Choice}, a, rx::Reaction, offer::Union{Offer,
         )
     end
     ans2 = tryreact!(then(r2, actr.continuation), a, rx, offer)
+    @trace(
+        label = :tried_choice2,
+        offerid = offerid(offer),
+        taskid = objectid(current_task()),
+        ans = ans2,
+        a,
+        rx,
+        offer,
+    )
     if ans1 isa NeedNack
         if ans2 isa NeedNack
             return NeedNack(combine(ans1.postcommithooks, ans2.postcommithooks))

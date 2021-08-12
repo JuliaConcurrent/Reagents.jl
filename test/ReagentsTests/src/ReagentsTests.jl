@@ -14,6 +14,7 @@ include("test_blocking.jl")
 include("test_anchors.jl")
 include("test_dissolve.jl")
 include("test_locks.jl")
+include("test_promises.jl")
 include("test_doctest.jl")
 include("test_aqua.jl")
 

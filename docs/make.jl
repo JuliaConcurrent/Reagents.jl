@@ -19,6 +19,7 @@ PAGES = [
         "Catalysts" => "tutorials/catalysts.md",
         "Locks" => "tutorials/locks.md",
         "Negative acknowledgement (NACK)" => "tutorials/nack.md",
+        "Promises and Futures" => "tutorials/promises.md",
     ],
     # "How-to guides" => [
     #     "" => "howto/.md",
