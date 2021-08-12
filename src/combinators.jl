@@ -28,15 +28,36 @@ function tryreact!(actr::Reactor{<:Choice}, a, rx::Reaction, offer::Union{Offer,
     ans1 isa Failure || return ans1
     if offer === nothing
         if _maysync(r1) && _hascas(r2)
+            if ans1 isa NeedNack
+                runpostcommithooks(ans1, nothing)
+            end
             # If the first branch may synchronize, and the second branch has a
             # CAS, we need to simultaneously rescind the offer *and* commit the
             # CASes.
             return Block()
         end
     end
+    if ans1 isa NeedNack
+        rx = Reaction(
+            rx.caslist,
+            rx.offers,
+            combine(rx.postcommithooks, ans1.postcommithooks),
+        )
+    end
     ans2 = tryreact!(then(r2, actr.continuation), a, rx, offer)
-    ans2 isa Failure || return ans2
-    if ans1 isa Retry
+    if ans1 isa NeedNack
+        if ans2 isa NeedNack
+            return NeedNack(combine(ans1.postcommithooks, ans2.postcommithooks))
+        elseif ans2 isa Block
+            return ans1
+        else
+            runpostcommithooks(ans1, nothing)
+            return ans2
+        end
+    elseif ans1 isa Retry && ans2 isa Failure
+        if ans2 isa NeedNack
+            runpostcommithooks(ans2, nothing)
+        end
         return Retry()
     else
         return ans2
@@ -75,6 +96,60 @@ Base.:>>(r1::Reagent, r2::Reagent) = r2 ∘ r1
 Base.:*(r1::Reagent, r2::Reagent) = Both(r1, r2)
 =#
 
+# Implementation strategy of `WithNack`
+#
+# `tryreact!(::Reactor{<:WithNack}, ...)` creates the post-command hook that
+# needs to be fired when other branch is chosen.  This is propagated upwards by
+# returned value `NeedNack` which is similar to `Block`.   In
+# `tryreact!(::Reactor{<:Choice}, ...)`, this post-commit hook is merged into
+# `rx::Reaction` used for the reaction of the "else" branch.
+
+struct NeedNack <: Reagents.Failure
+    postcommithooks::ImmutableList{Any}
+end
+
+const SomehowBlocked = Union{NeedNack,Block}
+
+withnackhook(::Block, @nospecialize(f)) = NeedNack(pushfirst(nothing, f))
+withnackhook(ans::NeedNack, @nospecialize(f)) = NeedNack(pushfirst(ans.postcommithooks, f))
+
+# Same as `Computed`:
+hascas(::WithNack) = true  # maybe
+maysync(::WithNack) = true  # maybe
+
+function tryreact!(actr::Reactor{<:WithNack}, a, rx::Reaction, offer::Union{Offer,Nothing})
+    if offer === nothing
+        # `WithNack` is likely to invoke a costly function to setup some kind of
+        # RPC.  Let's require `offer` to be instantiated so that it can be
+        # registered in the communications in this branch.  This is an
+        # optimization but the test relies on this behavior.
+        return Block()
+    end
+    (; f) = actr.reagent
+    iscancelled = Reagents.Ref{Bool}(false)
+    send, receive = Reagents.channel(Nothing)
+    function cancel!(_)
+        iscancelled[] = true
+        while Reagents.try(send) !== nothing
+        end
+    end
+    nack = receive | (Read(iscancelled) ⨟ Map(x -> x ? nothing : Block()))
+    y = f(nack)::Union{Failure,Reagent}
+    if y isa Failure
+        cancel!(nothing)
+        return y
+    end
+    ans = tryreact!(then(y, actr.continuation), a, rx, offer)
+    if ans isa SomehowBlocked
+        # `cancel!` will be registered into the else branch(es) of `Choice`
+        return withnackhook(ans, cancel!)
+    elseif ans isa Failure  # i.e., Retry
+        error("WithNack requires blocking reagent")
+    else
+        return ans
+    end
+end
+
 struct UntilBegin{R<:Reactor} <: Reagent
     loop::R
 end
@@ -107,7 +182,7 @@ function tryreact!(
         ans = tryreact!(loop, a, Reaction(), nothing)
         if ans isa UntilBreak
             return tryreact!(actr.continuation, ans.value, combine(rx, ans.rx), offer)
-        elseif ans isa Block
+        elseif ans isa SomehowBlocked
             error("`Until(f, reagent)` does not support blocking `reagent`")
         elseif ans isa Failure
             GC.safepoint()

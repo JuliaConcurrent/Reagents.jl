@@ -56,6 +56,10 @@ struct Map{F} <: Reagent
     f::F
 end
 
+struct WithNack{F} <: Reagent
+    f::F
+end
+
 struct Until{F,R<:Reagent} <: Reagent
     f::F
     reagent::R
@@ -90,7 +94,8 @@ using ..Reagents:
     Retry,
     Return,
     Until,
-    Update
+    Update,
+    WithNack
 
 include("utils.jl")
 include("immutablelists.jl")
