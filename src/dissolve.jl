@@ -2,15 +2,30 @@ function Reagents.dissolve(reagent::Reagent)
     offer = Catalyst{Any}()  # TODO: narrow type
     actr = then(reagent ⨟ PostCommit(ReDissolve(reagent)), Commit())
     ans = tryreact!(actr, nothing, Reaction(), offer)
-    if ans isa NeedNack
-        error("WithNack reagent cannot be dissolved")
-    elseif !(ans isa Block)
-        error("non-blocking reagent cannot be dissolved")
+
+    ntries = 0
+    while true
+        ans isa Block && return
+        if ans isa NeedNack
+            error("WithNack reagent cannot be dissolved")
+            # ...or is it OK?
+        end
+        # Otherwise, it means that `reagent` just helped a reaction somewhere or
+        # failed with `Retry`.  We need to make sure that there is no more duals
+        # waiting for a swap.  However, since the catalyst is already dissolved,
+        # we don't need to provide the `offer` here.
+        ans = tryreact!(then(reagent, Commit()), nothing, Reaction(), nothing)
+
+        ntries += 1
+        should_limit_retries() && ntries > 1000 && error("too many retries")
     end
 end
 # An approach alternative to executing `redissolve` as above is to keep the
 # catalyzing messages in the channel's bags. However, it'd require additional
 # mechanism to re-execute pre-blocking reagents (e.g., `cas ⨟ swap`).
+
+# Note: Registering catalysts on both ends of the channel can trigger an
+# infinite loop. Is it possible to detect this?
 
 struct ReDissolve{R<:Reagent}
     reagent::R
