@@ -25,7 +25,7 @@ function then(r::Update, actr::Reactable)
         new, y = f(old, x)
         return CAS(ref, old, new) ⨟ Return(y)
     end
-    return then(TeeZip(Read(ref)) ⨟ Computed(make_cas), actr)
+    return then(ZipSource(Read(ref)) ⨟ Computed(make_cas), actr)
 end
 
 struct NotSet end

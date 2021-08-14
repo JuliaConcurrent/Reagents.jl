@@ -66,15 +66,15 @@ function tryreact!(actr::Reactor{<:Choice}, a, rx::Reaction, offer::Union{Offer,
     end
 end
 
-struct TeeZip{R<:Reagent} <: Reagent
+struct ZipSource{R<:Reagent} <: Reagent
     reagent::R
 end
 
-hascas(r::TeeZip) = hascas(r.reagent)
-maysync(r::TeeZip) = maysync(r.reagent)
+hascas(r::ZipSource) = hascas(r.reagent)
+maysync(r::ZipSource) = maysync(r.reagent)
 
 
-function tryreact!(actr::Reactor{<:TeeZip}, a, rx::Reaction, offer::Union{Offer,Nothing})
+function tryreact!(actr::Reactor{<:ZipSource}, a, rx::Reaction, offer::Union{Offer,Nothing})
     (; reagent) = actr.reagent
     return tryreact!(then(reagent ⨟ Map(b -> (a, b)), actr.continuation), a, rx, offer)
 end
@@ -104,8 +104,8 @@ function then(r::Both, actr::Reactable)
             return Return(x) ⨟ r1 ⨟ Map(z -> (z, y))
         end
     end
-    try1 = TeeZip(r1) ⨟ Map(Branch{1})
-    try2 = TeeZip(r2) ⨟ Map(Branch{2})
+    try1 = ZipSource(r1) ⨟ Map(Branch{1})
+    try2 = ZipSource(r2) ⨟ Map(Branch{2})
     return then((try1 | try2) ⨟ Computed(continuation), actr)
 end
 # TODO: maybe directly define `tryreact`?
