@@ -21,11 +21,11 @@ hascas(::CAS) = true
 
 function then(r::Update, actr::Reactable)
     (; ref, f) = r
-    function make_cas((old, x),)
+    function make_cas((x, old),)
         new, y = f(old, x)
         return CAS(ref, old, new) ⨟ Return(y)
     end
-    return then((Read(ref) & Identity()) ⨟ Computed(make_cas), actr)
+    return then(ZipSource(Read(ref)) ⨟ Computed(make_cas), actr)
 end
 
 struct NotSet end
