@@ -63,6 +63,14 @@ function Base.in(v::T, bag::Bag{T}) where {T}
     return false
 end
 
+function nitems(bag::Bag)
+    n = 0
+    for _ in bag
+        n += 1
+    end
+    return n
+end
+
 function tryremove!(bag::Bag{T}, item::T) where {T}
     prev = bag
     y = iterate(bag)
