@@ -3,6 +3,8 @@ struct Sequence{Outer<:Reagent,Inner<:Reagent} <: Reagent
     inner::Inner
 end
 
+hascas(r::Sequence) = hascas(r.outer) || hascas(r.inner)
+
 then(r::Sequence, actr::Reactable) = then(r.outer, then(r.inner, actr))
 then(r::Reagent, actr::Reactable) = Reactor(r, actr)
 then(::Identity, actr::Reactable) = actr
@@ -64,6 +66,19 @@ function tryreact!(actr::Reactor{<:Choice}, a, rx::Reaction, offer::Union{Offer,
     end
 end
 
+struct TeeZip{R<:Reagent} <: Reagent
+    reagent::R
+end
+
+hascas(r::TeeZip) = hascas(r.reagent)
+maysync(r::TeeZip) = maysync(r.reagent)
+
+
+function tryreact!(actr::Reactor{<:TeeZip}, a, rx::Reaction, offer::Union{Offer,Nothing})
+    (; reagent) = actr.reagent
+    return tryreact!(then(reagent ⨟ Map(b -> (a, b)), actr.continuation), a, rx, offer)
+end
+
 struct Both{R1<:Reagent,R2<:Reagent} <: Reagent
     r1::R1
     r2::R2
@@ -71,17 +86,31 @@ end
 
 hascas(r::Both) = hascas(r.r1) || hascas(r.r2)
 
+struct Branch{Label,T}
+    value::T
+    label::Val{Label}
+end
+
+Branch{Label}(value) where {Label} = Branch(value, Val(Label))
+
 function then(r::Both, actr::Reactable)
     (; r1, r2) = r
-    function tee1(x)
-        function tee2(y1)
-            zip12(y2) = Return((y1, y2))
-            return Return(x) ⨟ r2 ⨟ Computed(zip12)
+    function continuation(br)
+        x, y = br.value
+        if br isa Branch{1}
+            return Return(x) ⨟ r2 ⨟ Map(z -> (y, z))
+        else
+            br::Branch{2}
+            return Return(x) ⨟ r1 ⨟ Map(z -> (z, y))
         end
-        return Return(x) ⨟ r1 ⨟ Computed(tee2)
     end
-    return then(Computed(tee1), actr)
+    try1 = TeeZip(r1) ⨟ Map(Branch{1})
+    try2 = TeeZip(r2) ⨟ Map(Branch{2})
+    return then((try1 | try2) ⨟ Computed(continuation), actr)
 end
+# TODO: maybe directly define `tryreact`?
+# Note: Using `Choice` inside `Both` so that *both* `r1` and `r2` can trigger
+# the reaction.
 
 Base.:∘(inner::Reagent, outer::Sequence) = (inner ∘ outer.inner) ∘ outer.outer
 Base.:∘(inner::Reagent, outer::Reagent) = Sequence(outer, inner)
