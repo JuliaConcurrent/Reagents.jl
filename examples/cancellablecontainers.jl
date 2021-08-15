@@ -210,7 +210,7 @@ cancellable_take!(b::Blocking, token::CancellationToken) = cancellable(taking(b)
 
 function cancel!(token::CancellationToken)
     token.iscancelled[] = true
-    while Reagents.try(token.send, Cancelled()) !== nothing
+    while Reagents.trysync!(token.send, Cancelled()) !== nothing
     end
 end
 

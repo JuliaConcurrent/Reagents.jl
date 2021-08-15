@@ -114,7 +114,7 @@ tryputting_internal(p::Promise) =
     Computed() do x
         CAS(p.value, nothing, x)
     end ⨟ PostCommit() do _
-        while Reagents.try(p.send) !== nothing
+        while Reagents.trysync!(p.send) !== nothing
         end
     end
 
@@ -151,7 +151,7 @@ Base.isopen(p::Promise) = !(p.value[] isa Closed)
 
 function Base.setindex!(p::Promise{T}, x) where {T}
     x = convert(T, x)
-    if Reagents.try(tryputting(p), x) === nothing
+    if Reagents.trysync!(tryputting(p), x) === nothing
         check_promise_closed(p.value[])
         error("promise already has a value")
     end
@@ -277,7 +277,7 @@ function tryrun!(f::Future{T}) where {T}
         y = f.thunk()
         y = convert(T, y)
         # Set the value, if it hasn't been set:
-        if Reagents.try(tryputting(f.value), y) === nothing
+        if Reagents.trysync!(tryputting(f.value), y) === nothing
             return nothing  # already closed
         end
         # Successfully stored the value:

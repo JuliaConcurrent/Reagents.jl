@@ -1,5 +1,7 @@
 module Utils
 
+using Test
+
 function with_log_on_error(f, name = f)
     try
         return f()
@@ -73,5 +75,22 @@ macro spawn_named(name, spawn, ex = undef)
         end
     end |> esc
 end
+
+macro test_error(expr)
+    @gensym err tmp
+    quote
+        local $err = nothing
+        $Test.@test try
+            $expr
+            false
+        catch $tmp
+            $err = $tmp
+            true
+        end
+        $err
+    end |> esc
+end
+
+const ⊏ = occursin
 
 end  # module

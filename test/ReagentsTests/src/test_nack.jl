@@ -86,14 +86,14 @@ function test_withnack_no_nack()
     with_simple_withnack_test_setup() do (; t1, t2, s1, s3)
         s1(111)
         @test fetch(t2) == 111
-        Reagents.try(s3, 222)
+        Reagents.trysync!(s3, 222)
         @test fetch(t1) == 222
     end
 end
 
 function test_withnack_nack_lost()
     with_simple_withnack_test_setup() do (; t1, t2, s1, s3)
-        Reagents.try(s3, 222)
+        Reagents.trysync!(s3, 222)
         @test fetch(t1) == 222
         s1(111)
         @test fetch(t2) == 111

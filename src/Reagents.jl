@@ -72,8 +72,10 @@ end
 function channel end
 function dissolve end
 
-struct _TryFunction <: Function end
-const var"try" = _TryFunction()
+function try! end
+const var"try" = try!  # TODO: remove
+
+function trysync! end
 
 module Internal
 
