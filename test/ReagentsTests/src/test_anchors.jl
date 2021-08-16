@@ -51,10 +51,10 @@ function test_simple_race()
     r1 = Reagents.CAS(ref1, 0, 111) ⨟ Reagents.CAS(ref2, 0, 222)
     r2 = Reagents.CAS(ref1, 0, 333) ⨟ Reagents.CAS(ref2, 0, 444)
     a1 = withanchor() do
-        Reagents.try(r1)
+        Reagents.try!(r1)
     end
     a2 = withanchor() do
-        Reagents.try(r2)
+        Reagents.try!(r2)
     end
     k1, _ = nextanchor!(a1)
     k2, _ = nextanchor!(a2)

@@ -39,7 +39,7 @@ function search(list::HMList{T}, x::T) where {T}
             next = curr.next[]
             prev[] === curr || break
             if next isa Deleted
-                if Reagents.try(CAS(prev, curr, next.value)) === nothing
+                if Reagents.try!(CAS(prev, curr, next.value)) === nothing
                     break
                 end
                 curr = next.value
@@ -72,7 +72,7 @@ trydeleting(list::HMList) =
         if found
             deleted = Deleted(next)
             CAS(curr.next, next, deleted) ⨟ PostCommit() do _
-                Reagents.try(CAS(prev, curr, next))
+                Reagents.try!(CAS(prev, curr, next))
             end
         else
             Return(false)

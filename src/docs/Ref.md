@@ -18,7 +18,7 @@ julia> ref[] = 111;
 julia> ref[]
 111
 
-julia> Reagents.try(Reagents.CAS(ref, 111, 222)) !== nothing
+julia> Reagents.try!(Reagents.CAS(ref, 111, 222)) !== nothing
 true
 
 julia> ref[]

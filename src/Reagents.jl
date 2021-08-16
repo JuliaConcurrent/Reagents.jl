@@ -73,8 +73,6 @@ function channel end
 function dissolve end
 
 function try! end
-const var"try" = try!  # TODO: remove
-
 function trysync! end
 
 module Internal

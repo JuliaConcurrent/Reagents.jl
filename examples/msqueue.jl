@@ -56,11 +56,11 @@ pushing(q::MSQueue{T}) where {T} =
             next = tail.next[]
             if next === nothing  # found the tail
                 return Reagents.CAS(tail.next, nothing, node) ⨟ Reagents.PostCommit() do _
-                    Reagents.try(Reagents.CAS(q.tail, tail, node))
+                    Reagents.try!(Reagents.CAS(q.tail, tail, node))
                 end
             else  # need the fixup
                 next::nodetype(q)
-                Reagents.try(Reagents.CAS(q.tail, tail, next))
+                Reagents.try!(Reagents.CAS(q.tail, tail, next))
             end
         end
     end
