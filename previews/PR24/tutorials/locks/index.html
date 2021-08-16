@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Locks · Reagents</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Reagents</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Reagents.jl</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../treiberstack/">Treiber stack</a></li><li><a class="tocitem" href="../msqueue/">Michael and Scott queue</a></li><li><a class="tocitem" href="../cancellablecontainers/">Cancellable containers</a></li><li><a class="tocitem" href="../catalysts/">Catalysts</a></li><li class="is-active"><a class="tocitem" href>Locks</a><ul class="internal"><li><a class="tocitem" href="#Simple-lock"><span>Simple lock</span></a></li><li><a class="tocitem" href="#Semaphore"><span>Semaphore</span></a></li><li><a class="tocitem" href="#Reader-writer-lock"><span>Reader-writer lock</span></a></li><li><a class="tocitem" href="#References"><span>References</span></a></li></ul></li><li><a class="tocitem" href="../nack/">Negative acknowledgement (NACK)</a></li><li><a class="tocitem" href="../promises/">Promises and Futures</a></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../../reference/api/">API</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Locks</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Locks</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/tkf/Reagents.jl/blob/master/examples/locks.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Reagents.jl is still work-in-progress.</p></div></div><h1 id="Locks"><a class="docs-heading-anchor" href="#Locks">Locks</a><a id="Locks-1"></a><a class="docs-heading-anchor-permalink" href="#Locks" title="Permalink"></a></h1><p>We can quite easily implement various locks based on the <a href="../cancellablecontainers/#ex-blockingcontainers">Blocking containers</a> we have implemented.</p><pre><code class="language-julia hljs">include(&quot;cancellablecontainers.jl&quot;)
+using Reagents: PostCommit, dissolve
+
+using ArgCheck: @argcheck</code></pre><h2 id="Simple-lock"><a class="docs-heading-anchor" href="#Simple-lock">Simple lock</a><a id="Simple-lock-1"></a><a class="docs-heading-anchor-permalink" href="#Simple-lock" title="Permalink"></a></h2><p>A simple (non-reentrant) lock can be created as a simple wrapper of a blocking container (e.g., a stack):</p><pre><code class="language-julia hljs">struct SimpleLock &lt;: Base.AbstractLock
+    access::typeof(Blocking(TreiberStack{Nothing}()))
+end</code></pre><p>A lock is acquired by emptying the container so that subsequent attempts to acquire the lock will block until the element is put back into the container:</p><pre><code class="language-julia hljs">acquiring(l::SimpleLock) = taking(l.access)
+realeasing(l::SimpleLock) = Return(nothing) ⨟ putting(l.access)
+
+Base.lock(l::SimpleLock) = acquiring(l)()
+Base.unlock(l::SimpleLock) = realeasing(l)()</code></pre><p>Thus, when creating a lock with an empty container, it is in the locked state. We need to unlock it (i.e., put one element in the container) before start using the lock:</p><pre><code class="language-julia hljs">function SimpleLock()
+    l = SimpleLock(Blocking(TreiberStack{Nothing}()))
+    unlock(l)  # start with unlocked state
+    return l
+end</code></pre><p>Here&#39;s how it works:</p><pre><code class="language-julia hljs">function test_simplelock()
+    l = SimpleLock()
+    send, receive = Reagents.channel()
+    @sync begin
+        child_locked = Threads.Atomic{Bool}(false)
+        child_unlocked = Threads.Atomic{Bool}(false)
+        lock(l) do</code></pre><p>While the lock is acquired, the child task cannot lock it:</p><pre><code class="language-julia hljs">            Threads.@spawn begin
+                send(:child_started)
+                lock(l) do
+                    child_locked[] = true
+                    send(:child_locked)
+                end
+                child_unlocked[] = true
+                send(:child_unlocked)
+            end
+            @test receive() === :child_started
+            @test !child_locked[]
+        end  # lock(l) do</code></pre><p>After unlocking the lock in the parent task, the child task can acquire the lock:</p><pre><code class="language-julia hljs">        @test receive() === :child_locked
+        @test child_locked[]
+        @test receive() === :child_unlocked
+        @test child_unlocked[]
+    end
+end</code></pre><h3 id="Locking-with-a-timeout"><a class="docs-heading-anchor" href="#Locking-with-a-timeout">Locking with a timeout</a><a id="Locking-with-a-timeout-1"></a><a class="docs-heading-anchor-permalink" href="#Locking-with-a-timeout" title="Permalink"></a></h3><p>Since <code>SimpleLock</code> exposes the reagent API, it can be composed with other reagents. For example, it is straightforward to add timeout to the lock:</p><pre><code class="language-julia hljs">function timeout(seconds::Real)
+    send, receive = Reagents.channel(Nothing)
+    @async begin
+        sleep(seconds)
+        send(nothing)
+    end
+    return receive
+end
+
+function try_with_timeout(reagent, seconds::Real)
+    reagent = (reagent ⨟ Map(Some)) | timeout(seconds)
+    return reagent()
+end</code></pre><p>Calling <code>try_with_timeout(reagent, seconds)</code> execute <code>reagent</code> with the timeout <code>seconds</code>. It returns <code>nothing</code> on timeout. If <code>reagent</code> completes its reaction with the output <code>value</code>, <code>try_with_timeout</code> returns <code>Some(value)</code>. It can be used with arbitrary reagent, including <code>acquiring(::SimpleLock)</code>:</p><pre><code class="language-julia hljs">function test_simplelock_timeout()
+    l = SimpleLock()</code></pre><p>If the lock is not acquired already, adding timeout does nothing:</p><pre><code class="language-julia hljs">    a1 = try_with_timeout(acquiring(l), 0.1)
+    @test a1 isa Some  # successfully acquire</code></pre><p>If the lock is already acquired, <code>try_with_timeout</code> will fail after the timeout:</p><pre><code class="language-julia hljs">    a2 = fetch(@async try_with_timeout(acquiring(l), 0.1))
+    @test a2 === nothing  # failed to acquire
+end</code></pre><h3 id="Trying-to-acquire-multiple-locks"><a class="docs-heading-anchor" href="#Trying-to-acquire-multiple-locks">Trying to acquire multiple locks</a><a id="Trying-to-acquire-multiple-locks-1"></a><a class="docs-heading-anchor-permalink" href="#Trying-to-acquire-multiple-locks" title="Permalink"></a></h3><p><code>SimpleLock</code> can also be composed with itself. For example, we can use the choice combinator <a href="../../reference/api/#Reagents.:|"><code>|</code></a> to acquire an available lock:</p><pre><code class="language-julia hljs">function test_simplelock_multiple()
+    l1 = SimpleLock()
+    l2 = SimpleLock()</code></pre><p>Let us lock <code>l1</code> first, so that subsequent lock cannot acquire it:</p><pre><code class="language-julia hljs">    lock(l1) do
+        local ans
+        @sync begin
+            Threads.@spawn begin</code></pre><p>Since we need to change the action depending on which lock is acquired (importantly, which one to unlock), we use <a href="../../reference/api/#Reagents.Return"><code>Reagents.Return</code></a> to associate different returned value for each branch of the <code>|</code> combinator:</p><pre><code class="language-julia hljs">                ans = (
+                    (acquiring(l1) ⨟ Return(1)) |  # try lock l1; will fail
+                    (acquiring(l2) ⨟ Return(2))    # try lock l2; will succeeds
+                )()</code></pre><p>Since <code>l1</code> is already acquired, we should have <code>ans == 2</code> here (checked below). But first, let&#39;s unlock the corresponding lock:</p><pre><code class="language-julia hljs">                if ans == 1  # unreachable, but demonstrating the generic usage
+                    unlock(l1)
+                elseif ans == 2
+                    unlock(l2)
+                end
+            end
+        end</code></pre><p>As mentioned above, we expect that <code>l2</code> was acquired in the child task:</p><pre><code class="language-julia hljs">        @test ans == 2
+    end
+end</code></pre><p>Remembering which lock to unlock is rather cumbersome. Let us wrap it in an interface that can be used with the <code>do</code>-block syntax:</p><pre><code class="language-julia hljs">function lockany(f, pairs...)
+    acquired, value = mapfoldl(lv -&gt; acquiring(first(lv)) ⨟ Return(lv), |, pairs)()
+    try
+        f(value)
+    finally
+        unlock(acquired)
+    end
+end</code></pre><p>The above code can now be expressed more succinctly:</p><pre><code class="language-julia hljs">function test_simplelock_lockany()
+    l1 = SimpleLock()
+    l2 = SimpleLock()
+    local ans
+    lock(l1) do
+        @sync begin
+            Threads.@spawn begin
+                lockany(l1 =&gt; 1, l2 =&gt; 2) do x
+                    ans = x
+                end
+            end
+        end
+    end
+    @test ans == 2
+end</code></pre><p>Note: <code>SimpleLock</code> and <code>SimpleSemaphore</code> are inspired by Turon &amp; Russo (2011).</p><h2 id="Semaphore"><a class="docs-heading-anchor" href="#Semaphore">Semaphore</a><a id="Semaphore-1"></a><a class="docs-heading-anchor-permalink" href="#Semaphore" title="Permalink"></a></h2><p><code>SimpleLock</code> can be extended to a semaphore by just initially fillying more than one elements:</p><pre><code class="language-julia hljs">struct SimpleSemaphore
+    accesses::typeof(Blocking(TreiberStack{Nothing}()))
+end
+
+function SimpleSemaphore(n::Integer)
+    @argcheck n &gt; 0
+    accesses = Blocking(TreiberStack{Nothing}())
+    for _ in 1:n
+        put!(accesses, nothing)
+    end
+    return SimpleSemaphore(accesses)
+end
+
+acquiring(l::SimpleSemaphore) = taking(l.accesses)
+realeasing(l::SimpleSemaphore) = Return(nothing) ⨟ putting(l.accesses)
+
+Base.acquire(l::SimpleSemaphore) = acquiring(l)()
+Base.release(l::SimpleSemaphore) = realeasing(l)()</code></pre><p>Unlike <code>SimpleLock</code>, we can acquire <code>SimpleSemaphore(n)</code> <code>n</code> times before blocked:</p><pre><code class="language-julia hljs">function test_simplesemaphore()
+    sem = SimpleSemaphore(2)
+    Base.acquire(sem)
+    Base.acquire(sem)
+    t = @task Base.acquire(sem)
+    yield(t)
+    @test !istaskdone(t)
+    Base.release(sem)
+    wait(t)
+end</code></pre><h2 id="Reader-writer-lock"><a class="docs-heading-anchor" href="#Reader-writer-lock">Reader-writer lock</a><a id="Reader-writer-lock-1"></a><a class="docs-heading-anchor-permalink" href="#Reader-writer-lock" title="Permalink"></a></h2><p>This example is from Turon &amp; Russo (2011) “Scalable Join Patterns.”  As mentioned in Turon (2012), the join pattern can be expressed with <a href="../catalysts/#catalysts">catalysts</a>.</p><p>Their reader-writer lock is acquired and released by sending messages to a channel. Let us define a simple wrapper type to express this:</p><pre><code class="language-julia hljs">struct ChLock &lt;: Base.AbstractLock
+    acq::typeof(Reagents.channel(Nothing)[1])
+    rel::typeof(Reagents.channel(Nothing)[1])
+end
+
+acquiring(l::ChLock) = l.acq
+realeasing(l::ChLock) = l.rel
+
+Base.lock(l::ChLock) = acquiring(l)()
+Base.unlock(l::ChLock) = realeasing(l)()</code></pre><p>To create two kinds of locks, we create <code>2 * 2 = 4</code> channels.  The state of the lock is mantained by two blocking data structures (Note: We only need to store at most one element. So, a stack is an overkill.  But that&#39;s the most cheap data structure we have implemented so far in the tutorial):</p><pre><code class="language-julia hljs">function reader_writer_lock()
+    idle = Blocking(TreiberStack{Nothing}())
+    shared = Blocking(TreiberStack{Int}())
+    acqr = Reagents.channel(Nothing)
+    acqw = Reagents.channel(Nothing)
+    relr = Reagents.channel(Nothing)
+    relw = Reagents.channel(Nothing)
+    dissolve(acqr[2] ⨟ taking(idle) ⨟ PostCommit(_ -&gt; put!(shared, 1)))
+    dissolve(acqr[2] ⨟ taking(shared) ⨟ PostCommit(n -&gt; put!(shared, n + 1)))
+    dissolve(relr[2] ⨟ taking(shared) ⨟ PostCommit() do n
+        if n == 1
+            put!(idle, nothing)
+        else
+            put!(shared, n - 1)
+        end
+    end)
+    dissolve(acqw[2] ⨟ taking(idle))
+    dissolve(relw[2] ⨟ PostCommit(_ -&gt; put!(idle, nothing)))
+    put!(idle, nothing)
+    return ChLock(acqr[1], relr[1]), ChLock(acqw[1], relw[1])
+end</code></pre><p>Observe that how the states of the lock are implemented:</p><ul><li>When the reader-writer lock is not acquired, <code>idle</code> has a single element. <code>shared</code> is empty.</li><li>When at least one of the reader (shared) lock is acquired, the number of acquired locks are stored in the <code>shared</code> container. The <code>idle</code> container is empty.</li><li>When the writer (exclusive) lock is acquired, both the <code>shared</code> and <code>idle</code> container is empty.</li></ul><p>As discussed in <a href="../catalysts/#catalysts">catalysts</a>, <a href="../../reference/api/#Reagents.dissolve"><code>Reagents.dissolve</code></a> is used for expressing the rules that expressing allowed transitions between these states.</p><p>Here&#39;s how it works:</p><pre><code class="language-julia hljs">function test_reader_writer_lock()
+    s1, r1 = Reagents.channel()
+    s2, r2 = Reagents.channel()
+    rlock, wlock = reader_writer_lock()
+    @sync begin</code></pre><p>Reader lock can be acquired multiple times:</p><pre><code class="language-julia hljs">        Threads.@spawn begin
+            lock(rlock) do
+                s1(1)
+                s2(:done)
+            end
+        end
+        Threads.@spawn begin
+            lock(rlock) do
+                s1(2)
+                s2(:done)
+            end
+        end
+        @test sort!([r1(), r1()]) == [1, 2]</code></pre><p>While the reader lock is aquired, the writer lock cannot be acquired:</p><pre><code class="language-julia hljs">        wlocked = Threads.Atomic{Bool}(false)
+        Threads.@spawn begin
+            lock(wlock) do
+                wlocked[] = true
+                s1(3)
+                s2(:done)
+            end
+        end
+        for _ in 1:3
+            sleep(0.1)
+            @test !wlocked[]
+        end
+        @test r2() === r2() === :done  # releaseing `rlock`
+        @test r1() == 3
+        @test wlocked[]</code></pre><p>While the writer lock is aquired, the reader lock cannot be acquired:</p><pre><code class="language-julia hljs">        r4locked = Threads.Atomic{Bool}(false)
+        r5locked = Threads.Atomic{Bool}(false)
+        Threads.@spawn begin
+            lock(rlock) do
+                r4locked[] = true
+                s1(4)
+                s2(:done)
+            end
+        end
+        Threads.@spawn begin
+            lock(rlock) do
+                r5locked[] = true
+                s1(5)
+                s2(:done)
+            end
+        end
+        for _ in 1:3
+            sleep(0.1)
+            @test r4locked[] == r5locked[] == false
+        end
+        @test r2() === :done  # releaseing `wlock`
+        @test sort!([r1(), r1()]) == [4, 5]
+        @test r4locked[] == r5locked[] == true
+        @test r2() === r2() === :done  # releaseing `rlock`
+    end
+end</code></pre><h2 id="References"><a class="docs-heading-anchor" href="#References">References</a><a id="References-1"></a><a class="docs-heading-anchor-permalink" href="#References" title="Permalink"></a></h2><ul><li><p>Turon, Aaron. “Reagents: Expressing and Composing Fine-Grained Concurrency.” In Proceedings of the 33rd ACM SIGPLAN Conference on Programming Language Design and Implementation, 157–168. PLDI ’12. New York, NY, USA: Association for Computing Machinery, 2012. <a href="https://doi.org/10.1145/2254064.2254084">https://doi.org/10.1145/2254064.2254084</a>.</p></li><li><p>Turon, Aaron J., and Claudio V. Russo. “Scalable Join Patterns.” In Proceedings of the 2011 ACM International Conference on Object Oriented Programming Systems Languages and Applications, 575–594. OOPSLA ’11. New York, NY, USA: Association for Computing Machinery, 2011. <a href="https://doi.org/10.1145/2048066.2048111">https://doi.org/10.1145/2048066.2048111</a>.</p></li></ul><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../catalysts/">« Catalysts</a><a class="docs-footer-nextpage" href="../nack/">Negative acknowledgement (NACK) »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Monday 16 August 2021 02:38">Monday 16 August 2021</span>. Using Julia version 1.7.0-beta3.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
