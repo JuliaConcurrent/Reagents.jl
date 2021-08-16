@@ -39,12 +39,27 @@ function tryreact!(
     (; value) = actr.reagent
     maysync(actr.continuation) || error("synchronizing continuation is required")
     ans = tryreact!(actr.continuation, a, rx, offer)
+    @trace(
+        label = :rib_tried,
+        offerid = offerid(offer),
+        taskid = objectid(current_task()),
+        ans = ans,
+        a,
+        value,
+    )
     if ans isa SomehowBlocked
         offer === nothing && return Block()  # require `offer` to try other branches
         if ans isa NeedNack
-            runpostcommithooks(ans, nothing)
+            rx = Reaction(
+                rx.caslist,
+                rx.offers,
+                combine(rx.postcommithooks, ans.postcommithooks),
+            )
         end
-        return value
+        # NOTE: Using `Commit()` is OK only when there is no `Swap` in the
+        # upstream reagents.  So, `ReturnIfBlocked` is only useful/usable with
+        # the usage like `trysync!`.
+        return tryreact!(Commit(), value, rx, offer)
     elseif ans isa Retry
         # Assuming the continuation has `Swap`, it must eventually return
         # `Block`.  So, retring the reaction should be fine.
