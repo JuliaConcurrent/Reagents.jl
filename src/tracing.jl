@@ -8,16 +8,20 @@ istracing() = false
 
 macro trace(args...)
     Recalls === nothing && return nothing
+    note = :($Recalls.@note($(args...),))
+    @assert note.head === :macrocall
+    @assert note.args[2] isa LineNumberNode
+    note.args[2] = __source__
     quote
         if $istracing()
-            $Recalls.@note($(args...),)
+            $note
         end
         nothing
     end |> esc
 end
 # TODO: Use Preferences.jl to controll if Recalls.jl should be loaded? Since
-# `args` may affect how much variables are captured in closures, the existence
-# of Recalls.jl changes the program slightly.
+# `args` may affect what variables are captured in closures, the existence of
+# Recalls.jl changes the program slightly.
 
 function enable_tracing()
     if Recalls === nothing
