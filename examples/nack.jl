@@ -93,7 +93,7 @@ function test_nack_demo_2()
     #=
     Since we chose the `WithNack`'s branch, `nack` is not triggered this time:
     =#
-    @test Reagents.try(receive_gotnack) === nothing
+    @test Reagents.trysync!(receive_gotnack) === nothing
 end
 
 # ## Client-server pattern

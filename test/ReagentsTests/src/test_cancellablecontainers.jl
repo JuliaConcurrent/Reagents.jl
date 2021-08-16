@@ -152,7 +152,7 @@ function check_repeat_cancellation(constructor, spawn::Bool; nitems = 100, rando
     nleft = 0
     ncleaned = 0
     while true
-        ref = Reagents.try(taking(items))
+        ref = Reagents.trysync!(taking(items))
         ref === nothing && break  # empty
         ncleaned += 1
         y = something(ref)[]

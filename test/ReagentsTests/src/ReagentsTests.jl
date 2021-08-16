@@ -3,6 +3,7 @@ module ReagentsTests
 include("utils.jl")
 include("test_immutablelists.jl")
 include("test_internal_bags.jl")
+include("test_try.jl")
 include("test_treiberstack.jl")
 include("test_msqueue.jl")
 include("test_hmlist.jl")

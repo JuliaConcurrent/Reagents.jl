@@ -4,6 +4,7 @@ struct Sequence{Outer<:Reagent,Inner<:Reagent} <: Reagent
 end
 
 hascas(r::Sequence) = hascas(r.outer) || hascas(r.inner)
+maysync(r::Sequence) = maysync(r.outer) || maysync(r.inner)
 
 then(r::Sequence, actr::Reactable) = then(r.outer, then(r.inner, actr))
 then(r::Reagent, actr::Reactable) = Reactor(r, actr)
@@ -20,6 +21,7 @@ struct Choice{R1<:Reagent,R2<:Reagent} <: Reagent
 end
 
 hascas(r::Choice) = hascas(r.r1) || hascas(r.r2)
+maysync(r::Choice) = maysync(r.r1) || maysync(r.r2)
 
 _maysync(r::Reagent) = maysync(then(r, Commit()))
 _hascas(r::Reagent) = hascas(then(r, Commit()))
@@ -188,7 +190,7 @@ function tryreact!(actr::Reactor{<:WithNack}, a, rx::Reaction, offer::Union{Offe
     send, receive = Reagents.channel(Nothing)
     function cancel!(_)
         iscancelled[] = true
-        while Reagents.try(send) !== nothing
+        while Reagents.trysync!(send) !== nothing
         end
     end
     nack = receive | (Read(iscancelled) ⨟ Map(x -> x ? nothing : Block()))
