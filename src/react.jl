@@ -50,14 +50,13 @@ function (r::Reagent)(a::A) where {A}
         else
             return ans
         end
-        let ans = rescind!(offer)
-            ans === nothing || return something(ans)
-        end
-        ntries += 1
-        should_limit_retries() && ntries > 1000 && error("too many retries")
+        y = rescind!(offer)
         if ans isa NeedNack
             runpostcommithooks(ans, nothing)
         end
+        y === nothing || return something(y)
+        ntries += 1
+        should_limit_retries() && ntries > 1000 && error("too many retries")
     end
 end
 

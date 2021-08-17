@@ -61,13 +61,6 @@ function tryreact!(actr::Reactor{<:Choice}, a, rx::Reaction, offer::Union{Offer,
             return Block()
         end
     end
-    if ans1 isa NeedNack
-        rx = Reaction(
-            rx.caslist,
-            rx.offers,
-            combine(rx.postcommithooks, ans1.postcommithooks),
-        )
-    end
     ans2 = tryreact!(then(r2, actr.continuation), a, rx, offer)
     @trace(
         label = :tried_choice2,
@@ -177,6 +170,8 @@ withnackhook(ans::NeedNack, @nospecialize(f)) = NeedNack(pushfirst(ans.postcommi
 hascas(::WithNack) = true  # maybe
 maysync(::WithNack) = true  # maybe
 
+# TODO: Alternative strategy: Disable NACK in this branch via post-commit hook;
+# trigger non-disabled NACKs while "bubbling" up.
 function tryreact!(actr::Reactor{<:WithNack}, a, rx::Reaction, offer::Union{Offer,Nothing})
     if offer === nothing
         # `WithNack` is likely to invoke a costly function to setup some kind of
@@ -186,20 +181,24 @@ function tryreact!(actr::Reactor{<:WithNack}, a, rx::Reaction, offer::Union{Offe
         return Block()
     end
     (; f) = actr.reagent
-    iscancelled = Reagents.Ref{Bool}(false)
+    iscancelled = Reagents.Ref{Union{Nothing,Bool}}(nothing)
     send, receive = Reagents.channel(Nothing)
     function cancel!(_)
-        iscancelled[] = true
-        while Reagents.trysync!(send) !== nothing
+        if cas!(iscancelled, nothing, true).success
+            while Reagents.trysync!(send) !== nothing
+            end
         end
     end
-    nack = receive | (Read(iscancelled) ⨟ Map(x -> x ? nothing : Block()))
+    function disable!(_)
+        cas!(iscancelled, nothing, false)
+    end
+    nack = receive | (Read(iscancelled) ⨟ Map(x -> x === true ? nothing : Block()))
     y = f(nack)::Union{Failure,Reagent}
     if y isa Failure
         cancel!(nothing)
         return y
     end
-    ans = tryreact!(then(y, actr.continuation), a, rx, offer)
+    ans = tryreact!(then(y, actr.continuation), a, withpostcommit(rx, disable!), offer)
     if ans isa SomehowBlocked
         # `cancel!` will be registered into the else branch(es) of `Choice`
         return withnackhook(ans, cancel!)

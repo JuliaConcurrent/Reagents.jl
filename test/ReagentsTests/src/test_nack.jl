@@ -21,6 +21,21 @@ function test_trivial_withnack_fired()
     @test true
 end
 
+function test_trivial_withnack_fired2()
+    send, receive = Reagents.channel()
+    putnack, getnack = Reagents.channel()
+    reagent = receive | Reagents.WithNack() do nack
+        putnack(nack)
+        return Reagents.Return(Reagents.Block())
+    end
+    t = @task reagent()
+    yield(t)
+    nack = getnack()
+    send(222)
+    @test fetch(t) == 222
+    @test Reagents.trysync!(nack) !== nothing
+end
+
 function test_trivial_withnack_not_fired()
     s1, r1 = Reagents.channel()
     local nack

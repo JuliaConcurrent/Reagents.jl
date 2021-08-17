@@ -42,7 +42,7 @@ function nack_demo()
     this branch `br1` is cancelled (i.e., another branch of `|` is chosen).
     =#
     br1 = WithNack() do nack
-        @async (nack ⨟ Return(:gotnack) ⨟ send_gotnack)()
+        @async (nack ∘ send_gotnack)(:gotnack)
         return r1
     end
     #=
