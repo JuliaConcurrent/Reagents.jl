@@ -203,7 +203,8 @@ function tryreact!(actr::Reactor{<:WithNack}, a, rx::Reaction, offer::Union{Offe
         # `cancel!` will be registered into the else branch(es) of `Choice`
         return withnackhook(ans, cancel!)
     elseif ans isa Failure  # i.e., Retry
-        error("WithNack requires blocking reagent")
+        cancel!(nothing)
+        return ans
     else
         return ans
     end

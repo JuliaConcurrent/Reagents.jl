@@ -1,6 +1,7 @@
 module TestNack
 
 using Reagents
+using Reagents: CAS
 using Test
 using ..Utils: @spawn_named
 
@@ -113,6 +114,22 @@ function test_withnack_nack_lost()
         s1(111)
         @test fetch(t2) == 111
     end
+end
+
+function test_withnack_retries()
+    state = Ref(0)
+    ref = Reagents.Ref(10)
+    local nack
+    reagent = WithNack() do x
+        nack = x
+        old = state[] += 1  # eventually correct
+        CAS(ref, old, 111)
+    end
+
+    @test Reagents.trysync!(reagent) !== nothing
+    @test ref[] == 111
+    @test Reagents.trysync!(nack) === nothing
+
 end
 
 end  # module
