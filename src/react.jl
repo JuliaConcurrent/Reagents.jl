@@ -62,7 +62,7 @@ function (r::Reagent)(a::A) where {A}
 end
 
 Reagents.try!(r::Reagent, a = nothing) = ((r ⨟ Map(Some)) | Return(nothing))(a)
-Reagents.trysync!(r::Reagent, a = nothing) = (ReturnIfBlocked(nothing) ⨟  r ⨟ Map(Some))(a)
+Reagents.trysync!(r::Reagent, a = nothing) = (ReturnIfBlocked(nothing) ⨟ r ⨟ Map(Some))(a)
 
 hascas(actr::Reactor) = hascas(actr.reagent) || hascas(actr.continuation)
 
@@ -86,6 +86,11 @@ function tryput!(offer::Waiter{T}, value::T) where {T}
     if old isa Waiting
         (_, success) = cas_weak!(offer.state, Waiting(), value)
         if success
+            @trace(
+                label = :tryput_wake_dual,
+                taskid = objectid(current_task()),
+                dual_taskid = objectid(offer.task),
+            )
             schedule(offer.task)
         end
         return success
@@ -114,18 +119,27 @@ function tryreact!(::Commit, a, rx::Reaction, offer::Union{Offer,Nothing})
         elseif ans isa WaiterFlags
             return Retry()
         else
+            @trace(
+                label = :took_offer,
+                taskid = objectid(current_task()),
+                offerid = offerid(offer),
+                ans,
+            )
             return ans
         end
     end
+    anchor(:commit, (; offer, rx))
+    issuccess = commit!(rx)
     @trace(
         label = :commit,
         taskid = objectid(current_task()),
         offerid = offerid(offer),
         offer,
-        rx
+        rx,
+        ans = a,
+        issuccess,
     )
-    anchor(:commit, (; offer, rx))
-    if commit!(rx)
+    if issuccess
         runpostcommithooks(rx, a)
         return a
     else

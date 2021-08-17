@@ -102,9 +102,10 @@ function tryreact_together!(msg::Message, k::Reactable, a, rx, offer)
         function fulfil_dual_offer(old)
             function wake_dual(_)
                 @trace(
-                    label = :wake_dual,
+                    label = :fulfil_wake_dual,
                     taskid = objectid(current_task()),
                     dual_taskid = objectid(dual_offer.task),
+                    offerid = offerid(dual_offer),
                 )
                 schedule(dual_offer.task)
             end
