@@ -77,6 +77,7 @@ function trysync! end
 
 module Internal
 
+using Accessors: @set
 using CompositionsBase: ⨟
 
 using ..Reagents:

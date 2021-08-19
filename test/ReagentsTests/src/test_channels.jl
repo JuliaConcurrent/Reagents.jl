@@ -1,6 +1,7 @@
 module TestChannels
 
 using Reagents
+using Reagents: Block, Map, Read
 using Reagents.Internal: @trace
 using Test
 using ..Utils: concurrently
@@ -110,6 +111,31 @@ function test_simple_choice(spawn::Bool, nrepeat = spawn ? 1000 : 1)
         spawn = spawn,
     )
     @test ok
+end
+
+function test_unblock()
+    a2b, b2a = Reagents.channel()
+    c2d, d2c = Reagents.channel()
+    ref = Reagents.Ref(0)
+    t = @task ((a2b | Read(ref) ⨟ Map(x -> x == 0 ? Block() : x)) ⨟ c2d)()
+    yield(t)
+    @test Reagents.trysync!(d2c) === nothing
+    @test Reagents.trysync!(b2a) === nothing
+    ref[] = 111
+    @test Reagents.trysync!(d2c) === nothing  # still blocked
+    @test Reagents.trysync!(b2a) === nothing  # unblock
+    istaskdone(t) && wait(t)
+    for _ in 1:100  # try it in a loop, since tasks other than `t` may exist
+        yield()  # let `t` run the reagent
+        ans = Reagents.trysync!(d2c, 222)
+        if ans !== nothing
+            @test ans == Some(111)
+            @test fetch(t) == 222
+            return
+        end
+    end
+    istaskdone(t) && wait(t)
+    @test false
 end
 
 end  # module

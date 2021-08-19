@@ -28,6 +28,7 @@ _hascas(r::Reagent) = hascas(then(r, Commit()))
 
 function tryreact!(actr::Reactor{<:Choice}, a, rx::Reaction, offer::Union{Offer,Nothing})
     (; r1, r2) = actr.reagent
+    rx = @set rx.restart_on_failure = true
     ans1 = tryreact!(then(r1, actr.continuation), a, rx, offer)
     @trace(
         label = :tried_choice1,

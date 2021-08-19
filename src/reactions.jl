@@ -28,31 +28,47 @@ offerid(offer::Waiter) = objectid(offer.state)
 offerid(::Catalyst) = UInt(1)
 offerid(::Nothing) = UInt(0)
 
+"""
+    Reaction
+
+* `caslist::ImmutableList{CAS}`
+* `offers::ImmutableList{Offer}`
+* `postcommithooks::ImmutableList{Any}`
+
+* `restart_on_failure::Bool` (default: `false`): A flag controlling if the
+  offer should be invalidated on the failure.  Consider `(r | s) ⨟ t` where `s`
+  and `t` both contain a `Swap`. When a `Swap` in `s` is triggered from the
+  dual, it may indicate that `r` is now reactable (i.e., `s` is used as a
+  condition variable).  In this case, it is now required to register the offer
+  at `t`.  To support this behavior, `restart_on_failure` is set to `true` in
+  the continuations of `Choice` (`|`). Then, in `tryreact!`, the offers of the
+  dual messsage in `Swap` with `restart_on_failure` flag set are aborted.  In
+  particular, if the state is in `Waiting`, the task is re-scheduled so that
+  other branches of `|` can be re-evaluated.
+"""
 struct Reaction
     caslist::ImmutableList{CAS}
     offers::ImmutableList{Offer}
     postcommithooks::ImmutableList{Any}
+    restart_on_failure::Bool
 end
 
-Reaction() = Reaction(nothing, nothing, nothing)
+Reaction() = Reaction(nothing, nothing, nothing, false)
 
 hascas(rx::Reaction) = rx.caslist !== nothing
 
 uintptr(x) = UInt(pointer_from_objref(x.ref))
 
-withcas(rx::Reaction, cas::CAS) =
-    Reaction(pushsortedby(uintptr, rx.caslist, cas), rx.offers, rx.postcommithooks)
-
-withoffer(rx::Reaction, offer::Offer) =
-    Reaction(rx.caslist, pushfirst(rx.offers, offer), rx.postcommithooks)
-
+withcas(rx::Reaction, cas::CAS) = @set rx.caslist = pushsortedby(uintptr, rx.caslist, cas)
+withoffer(rx::Reaction, offer::Offer) = @set rx.offers = pushfirst(rx.offers, offer)
 withpostcommit(rx::Reaction, @nospecialize(f)) =
-    Reaction(rx.caslist, rx.offers, pushfirst(rx.postcommithooks, f))
+    @set rx.postcommithooks = pushfirst(rx.postcommithooks, f)
 
 combine(rx1::Reaction, rx2::Reaction) = Reaction(
     combinesortedby(uintptr, rx1.caslist, rx2.caslist),
     combine(rx1.offers, rx2.offers),
     combine(rx1.postcommithooks, rx2.postcommithooks),
+    rx1.restart_on_failure | rx2.restart_on_failure,
 )
 
 setcasing!(::Nothing) = true
