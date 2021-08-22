@@ -3,6 +3,8 @@ module TestDissolve
 using Reagents
 using Test
 
+using ..TestPromises: Promise, fetching
+
 include("../../../examples/catalysts.jl")
 
 function zip_channels(inputs, output)
@@ -38,6 +40,39 @@ function test_pre_block()
     ref[] = 10  # invalidate the CAS
     @test receive() == 10
     @test receive() == 11
+end
+
+function test_once_blocked()
+    ref = Reagents.Ref{Int}(0)
+    send, receive = Reagents.channel(Int, Nothing)
+    Reagents.dissolve(Reagents.Update((x, _) -> (x + 1, x), ref) ⨟ send; once = true)
+    @test ref[] == 0
+    @test Reagents.trysync!(receive) == Some(0)
+    @test ref[] == 1
+    @test Reagents.trysync!(receive) === nothing
+    @test ref[] == 1
+end
+
+function test_promise()
+    @testset for preset in [false, true]
+        test_promise(preset)
+    end
+end
+
+function test_promise(preset)
+    p = Promise{Nothing}()
+    if preset
+        p[] = nothing
+    end
+    ncalls = Ref(0)
+    reagent = fetching(p) ⨟ Reagents.PostCommit() do _
+        ncalls[] += 1
+    end
+    Reagents.dissolve(reagent; once = true)
+    if !preset
+        p[] = nothing
+    end
+    @test ncalls[] == 1
 end
 
 end  # module
