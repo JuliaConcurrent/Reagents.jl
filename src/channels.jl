@@ -83,6 +83,7 @@ function tryreact!(
         let dual_offer = msg.offer
             if dual_offer isa Waiter
                 if msg.reaction.restart_on_failure
+                    tryput!(dual_offer, Rescinded())
                 end
             end
         end
