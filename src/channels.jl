@@ -80,6 +80,13 @@ function tryreact!(
         else
             return ans
         end
+        let dual_offer = msg.offer
+            if dual_offer isa Waiter
+                if msg.reaction.restart_on_failure
+                    tryput!(dual_offer, Rescinded())
+                end
+            end
+        end
     end
     for _ in msgs  # TODO: better cleanup
     end
@@ -125,7 +132,9 @@ function tryreact_together!(msg::Message, k::Reactable, a, rx, offer)
         Return(msg.payload),  # use the dual's value as the input for this continuation `k`
         k,
     )
-    return tryreact!(actr, a, withoffer(combine(rx, msg.reaction), msg.offer), offer)
+    rx2 = withoffer(combine(rx, msg.reaction), msg.offer)
+    rx2 = @set rx2.restart_on_failure = rx.restart_on_failure
+    return tryreact!(actr, a, rx2, offer)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", @nospecialize(swap::Swap{A,B})) where {A,B}

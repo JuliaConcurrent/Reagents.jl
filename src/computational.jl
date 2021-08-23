@@ -50,11 +50,7 @@ function tryreact!(
     if ans isa SomehowBlocked
         offer === nothing && return Block()  # require `offer` to try other branches
         if ans isa NeedNack
-            rx = Reaction(
-                rx.caslist,
-                rx.offers,
-                combine(rx.postcommithooks, ans.postcommithooks),
-            )
+            rx = @set rx.postcommithooks = combine(rx.postcommithooks, ans.postcommithooks)
         end
         # NOTE: Using `Commit()` is OK only when there is no `Swap` in the
         # upstream reagents.  So, `ReturnIfBlocked` is only useful/usable with
