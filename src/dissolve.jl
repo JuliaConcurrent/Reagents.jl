@@ -1,11 +1,12 @@
-function Reagents.dissolve(reagent::Reagent)
+function Reagents.dissolve(reagent::Reagent; once = false)
     offer = Catalyst{Any}()  # TODO: narrow type
-    actr = then(reagent ⨟ PostCommit(ReDissolve(reagent)), Commit())
+    actr = then(once ? reagent : reagent ⨟ PostCommit(ReDissolve(reagent)), Commit())
     ans = tryreact!(actr, nothing, Reaction(), offer)
 
     ntries = 0
     while true
         ans isa Block && return
+        (once && !(ans isa Failure)) && return
         if ans isa NeedNack
             error("WithNack reagent cannot be dissolved")
             # ...or is it OK?
@@ -54,7 +55,6 @@ function maybe_redissolve!(msg::Message)
     offer isa Catalyst || return
     has_stale_cas(msg.reaction) || return
     if cas!(offer.state, Pending(), Rescinded()).success
-        ok = redissolve!(msg.continuation)
-        @assert ok
+        redissolve!(msg.continuation)
     end
 end
