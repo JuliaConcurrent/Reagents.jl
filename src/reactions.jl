@@ -13,14 +13,51 @@ end
 Waiter{T}() where {T} =
     Waiter(Reagents.Ref{WaiterState{T}}(Pending()), current_task())::Waiter{T}
 
+backedge!(::Waiter, ::Bag) = false
+
 const CatalystFlags = Union{Pending,Rescinded}
 const CatalystState{T} = Union{Pending,Rescinded,T}
 
+struct Deleted end
+deleteref() = Reagents.Ref{Union{ImmutableList{Bag},Deleted}}(nothing)
+
 struct Catalyst{T,State<:Reagents.Ref{CatalystState{T}}}
+    deleteref::typeof(deleteref())
     state::State
 end
 
-Catalyst{T}() where {T} = Catalyst(Reagents.Ref{CatalystState{T}}(Pending()))::Catalyst{T}
+Catalyst{T}(deleteref = deleteref()) where {T} =
+    Catalyst(deleteref, Reagents.Ref{CatalystState{T}}(Pending()))::Catalyst{T}
+
+function backedge!(offer::Catalyst, @nospecialize(bag::Bag))
+    old = offer.deleteref[]
+    while true
+        old isa Deleted && return true
+        old, success = cas!(offer.deleteref, old, ImmutableListNode{Bag}(bag, old))
+        success && break
+    end
+    _cleanupbags!(old)  # cleanup previous offer
+    return false
+end
+
+function _delete!(offer::Catalyst)
+    offer.state[] = Rescinded()
+    old = offer.deleteref[]
+    while true
+        old isa Deleted && return
+        old, success = cas!(offer.deleteref, old, Deleted())
+        success && break
+    end
+    _cleanupbags!(old)
+end
+
+function _cleanupbags!(@nospecialize(list::ImmutableList{Bag}))
+    list === nothing && return
+    for bag in list
+        for _ in bag  # TODO: better cleanup
+        end
+    end
+end
 
 const Offer{T} = Union{Waiter{T},Catalyst{T}}
 

@@ -75,4 +75,20 @@ function test_promise(preset)
     @test ncalls[] == 1
 end
 
+function test_clear()
+    send, receive = Reagents.channel()
+    ncalls = Ref(0)
+    reagent = receive ⨟ Reagents.PostCommit() do _
+        ncalls[] += 1
+    end
+    handle = Reagents.dissolve(reagent)
+    @test Reagents.trysync!(send) !== nothing
+    @test ncalls[] == 1
+    @test Reagents.trysync!(send) !== nothing
+    @test ncalls[] == 2
+    Reagents.clear!(handle)
+    @test Reagents.trysync!(send) === nothing
+    @test ncalls[] == 2
+end
+
 end  # module
