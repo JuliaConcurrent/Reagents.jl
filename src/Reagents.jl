@@ -74,6 +74,7 @@ function dissolve end
 
 function try! end
 function trysync! end
+function trysyncing end
 
 module Internal
 
