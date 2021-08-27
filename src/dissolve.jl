@@ -1,12 +1,45 @@
-function Reagents.dissolve(reagent::Reagent; once = false)
+dissolvedhandleref() = Reagents.Ref{Union{Catalyst,Nothing,Deleted}}(nothing)
+
+struct DissolvedHandle
+    ref::typeof(dissolvedhandleref())
+end
+
+DissolvedHandle() = DissolvedHandle(dissolvedhandleref())
+
+function _tryset!(handle::DissolvedHandle, value)
+    local old::Union{Catalyst{Any},Nothing,Deleted}  # `Catalyst{Any}` is OK for now
+    old = handle.ref[]
+    while true
+        old isa Deleted && return old
+        old, success = cas!(handle.ref, old, value)
+        success && return old
+    end
+end
+
+function Reagents.clear!(handle::DissolvedHandle)
+    offer = _tryset!(handle, Deleted())
+    offer isa Deleted && return
+    offer === nothing && return
+    _delete!(offer)
+end
+
+# TODO: make `DissolvedHandle` optional?
+Reagents.dissolve(reagent::Reagent; once = false) =
+    _dissolve(reagent, DissolvedHandle(), once)::DissolvedHandle
+
+function _dissolve(reagent::Reagent, handle::DissolvedHandle, once::Bool = false)
     offer = Catalyst{Any}()  # TODO: narrow type
-    actr = then(once ? reagent : reagent ⨟ PostCommit(ReDissolve(reagent)), Commit())
+    let old = _tryset!(handle, offer)
+        old isa Deleted && return handle
+    end
+    actr =
+        then(once ? reagent : reagent ⨟ PostCommit(ReDissolve(reagent, handle)), Commit())
     ans = tryreact!(actr, nothing, Reaction(), offer)
 
     ntries = 0
     while true
-        ans isa Block && return
-        (once && !(ans isa Failure)) && return
+        ans isa Block && return handle
+        (once && !(ans isa Failure)) && return handle
         if ans isa NeedNack
             error("WithNack reagent cannot be dissolved")
             # ...or is it OK?
@@ -30,9 +63,10 @@ end
 
 struct ReDissolve{R<:Reagent}
     reagent::R
+    handle::DissolvedHandle
 end
 
-(f::ReDissolve)(_) = Reagents.dissolve(f.reagent)
+(f::ReDissolve)(_) = _dissolve(f.reagent, f.handle)
 
 redissolve!(_) = false
 redissolve!(actr::Reactor) = redissolve!(actr.continuation)

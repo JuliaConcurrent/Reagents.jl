@@ -28,19 +28,6 @@ function then(r::Update, actr::Reactable)
     return then(ZipSource(Read(ref)) ⨟ Computed(make_cas), actr)
 end
 
-struct NotSet end
-struct CASing end
-
-Reagents.Ref{T}() where {T} = GenericRef{T}()
-Reagents.Ref{T}(x) where {T} = GenericRef{T}(x)
-Reagents.Ref(x::T) where {T} = GenericRef{T}(x)
-
-mutable struct GenericRef{T} <: Reagents.Ref{T}
-    @atomic value::Any
-end
-
-GenericRef{T}() where {T} = GenericRef{T}(NotSet())
-
 function cas_weak!(ref::GenericRef{T}, expected::Union{T,NotSet}, desired::T) where {T}
     (old, success) = @atomicreplace ref.value expected => desired
     return (; old, success)

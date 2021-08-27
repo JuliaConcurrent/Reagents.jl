@@ -71,9 +71,11 @@ end
 
 function channel end
 function dissolve end
+function clear! end
 
 function try! end
 function trysync! end
+function trysyncing end
 
 module Internal
 
@@ -102,12 +104,13 @@ include("utils.jl")
 include("immutablelists.jl")
 include("tracing.jl")
 include("anchors.jl")
+include("bags.jl")
+include("core.jl")
 include("reactions.jl")
 include("react.jl")
 include("combinators.jl")
 include("computational.jl")
 include("refs.jl")
-include("bags.jl")
 include("channels.jl")
 include("dissolve.jl")
 
