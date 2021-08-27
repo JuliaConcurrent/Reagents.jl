@@ -54,6 +54,9 @@ function define_docstrings()
         include_dependency(path)
         doc = read(path, String)
         doc = transform_docstring(doc, label)
-        @eval Reagents $Base.@doc $doc $name
+        ex = :($Base.@doc $doc $name)
+        ex.args[2]::LineNumberNode
+        ex.args[2] = LineNumberNode(1, Symbol(path))
+        Base.eval(Reagents, ex)
     end
 end
