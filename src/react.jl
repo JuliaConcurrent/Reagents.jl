@@ -61,7 +61,8 @@ function (r::Reagent)(a::A) where {A}
 end
 
 Reagents.try!(r::Reagent, a = nothing) = ((r ⨟ Map(Some)) | Return(nothing))(a)
-Reagents.trysync!(r::Reagent, a = nothing) = (ReturnIfBlocked(nothing) ⨟ r ⨟ Map(Some))(a)
+Reagents.trysync!(r::Reagent, a = nothing) = Reagents.trysyncing(r)(a)
+Reagents.trysyncing(r::Reagent) = ReturnIfBlocked(nothing) ⨟ r ⨟ Map(Some)
 
 hascas(actr::Reactor) = hascas(actr.reagent) || hascas(actr.continuation)
 
