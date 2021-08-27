@@ -46,6 +46,9 @@ function tryreact!(
                 offer,
                 msgs,
             )
+            # Add backedges for cleaning up catalysts. Block the reaction if the
+            # catalyst is already removed.
+            backedge!(offer, msgs) && return Block() 
         end
     else
         @trace(
