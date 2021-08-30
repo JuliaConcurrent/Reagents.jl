@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Promises and Futures · Reagents</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">Reagents</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Reagents.jl</a></li><li><span class="tocitem">Tutorials</span><ul><li><a class="tocitem" href="../treiberstack/">Treiber stack</a></li><li><a class="tocitem" href="../msqueue/">Michael and Scott queue</a></li><li><a class="tocitem" href="../cancellablecontainers/">Cancellable containers</a></li><li><a class="tocitem" href="../catalysts/">Catalysts</a></li><li><a class="tocitem" href="../locks/">Locks</a></li><li><a class="tocitem" href="../nack/">Negative acknowledgement (NACK)</a></li><li class="is-active"><a class="tocitem" href>Promises and Futures</a><ul class="internal"><li><a class="tocitem" href="#Promise"><span>Promise</span></a></li><li><a class="tocitem" href="#Future"><span>Future</span></a></li></ul></li></ul></li><li><span class="tocitem">Reference</span><ul><li><a class="tocitem" href="../../reference/api/">API</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Tutorials</a></li><li class="is-active"><a href>Promises and Futures</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Promises and Futures</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/tkf/Reagents.jl/blob/master/examples/promises.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>Reagents.jl is still work-in-progress.</p></div></div><h1 id="Promises-and-Futures"><a class="docs-heading-anchor" href="#Promises-and-Futures">Promises and Futures</a><a id="Promises-and-Futures-1"></a><a class="docs-heading-anchor-permalink" href="#Promises-and-Futures" title="Permalink"></a></h1><p><a href="../cancellablecontainers/#ex-blockingcontainers">Blocking containers</a> tutorial demonstrated how to wait on the arrival (<code>put!</code>) of a new element.  However, <code>put!</code> is not the only interesting event on a concurrent data structure.  By defining <code>Promise</code> and <code>Future</code>, the following code demonstrates a strategy for signaling and responding to additional events such as a call to <code>close</code>.</p><pre><code class="language-julia hljs">using Reagents
+using Reagents: Block, CAS, Computed, Map, PostCommit, Read, Return</code></pre><h2 id="Promise"><a class="docs-heading-anchor" href="#Promise">Promise</a><a id="Promise-1"></a><a class="docs-heading-anchor-permalink" href="#Promise" title="Permalink"></a></h2><p>Let us implement <a href="https://en.wikipedia.org/wiki/Futures_and_promises"><em>Promise</em></a> with the following API:</p><pre><code class="language-julia hljs">function test_promise_fetches()</code></pre><p>We can create a promise, possibly with a specific element type:</p><pre><code class="language-julia hljs">    p = Promise{Int}()</code></pre><p>Calling <code>fetch(p::Promise)</code> will wait for <code>p</code> to be fullfiled:</p><pre><code class="language-julia hljs">    task = @task fetch(p)
+    yield(task)
+    @test !istaskdone(task)  # the task is suspended</code></pre><p>We can set the value of the promise with the <code>Ref</code>-like interface:</p><pre><code class="language-julia hljs">    p[] = 111</code></pre><p>Once the value is set, all the calls to <code>fetch</code> are unblocked:</p><pre><code class="language-julia hljs">    @test fetch(task) == 111  # Note: `task` is calling `fetch(p)`</code></pre><p><code>fetch(p::Promise)</code> can be called multiple times and it does not block after the value is set:</p><pre><code class="language-julia hljs">    @test fetch(p) == 111
+end</code></pre><p>We also implement <code>close(::Promise)</code>, which unblock <code>fetch</code> but with exception.</p><pre><code class="language-julia hljs">function test_promise_close_before_fetches()</code></pre><p>Suppose we created a promise and there is a task waiting for it:</p><pre><code class="language-julia hljs">    p = Promise{Int}()
+    t = @task fetch(p)
+    yield(t)</code></pre><p>... but the promise is closed before setting the value</p><pre><code class="language-julia hljs">    close(p)</code></pre><p>Then, previously blocked <code>fetch(::Promise)</code> rasies an exception:</p><pre><code class="language-julia hljs">    err = try
+        wait(t)
+        nothing
+    catch err
+        err
+    end
+    @test err isa TaskFailedException
+    @test occursin(&quot;promise is closed&quot;, sprint(showerror, err))</code></pre><p>Subsequent call to <code>fetch(::Promise)</code> also throws an exception:</p><pre><code class="language-julia hljs">    @test_throws ErrorException(&quot;promise is closed&quot;) fetch(p)
+end</code></pre><h3 id="Implementing-Promise"><a class="docs-heading-anchor" href="#Implementing-Promise">Implementing <code>Promise</code></a><a id="Implementing-Promise-1"></a><a class="docs-heading-anchor-permalink" href="#Implementing-Promise" title="Permalink"></a></h3><p>We store the state of <code>Promise</code> in a single <code>Ref</code> by using the <code>Union</code> type.</p><pre><code class="language-julia hljs">struct Closed end
+
+const PromiseRef{T} = Reagents.Ref{Union{
+    Nothing,  # indicates the value is not set and the promise is not closed
+    Some{T},  # indicates that the value of type `T` is set
+    Closed,   # indicates that the promise is closed
+}}</code></pre><p>The <code>Promise</code> type also contains a channel for sending and receiving signals on the state change:</p><pre><code class="language-julia hljs">struct Promise{T,Ref&lt;:PromiseRef{T}}
+    value::Ref
+    send::typeof(Reagents.channel(Nothing)[1])
+    receive::typeof(Reagents.channel(Nothing)[2])
+end
+
+Promise() = Promise{Any}()
+function Promise{T}() where {T}
+    send, receive = Reagents.channel(Nothing)
+    return Promise(PromiseRef{T}(nothing), send, receive)
+end</code></pre><p>Since setting value and closing the channel are similar, we define an internal function that tries to set <code>p.value::Reagents.Ref</code> if it&#39;s not already set and then, upon success, notify all the waiters:</p><pre><code class="language-julia hljs">tryputting_internal(p::Promise) =
+    Computed() do x
+        CAS(p.value, nothing, x)
+    end ⨟ PostCommit() do _
+        while Reagents.trysync!(p.send) !== nothing
+        end
+    end</code></pre><p>Then, we can define a reagent for setting a value and a reagent for closing the promise as simple wrappers:</p><pre><code class="language-julia hljs">tryputting(p::Promise{T}) where {T} = Map(Some{T}) ⨟ tryputting_internal(p)
+closing(p::Promise) = Return(Closed()) ⨟ tryputting_internal(p)</code></pre><p>The reagent for fetching the promise needs to first listen to the putting and closing events (to avoid missing the notification) and <em>then</em> check if the value is set:</p><pre><code class="language-julia hljs">fetching(p::Promise{T}) where {T} =
+    (p.receive ⨟ Read(p.value) ⨟ Map(something)) |
+    (Read(p.value) ⨟ Map(x -&gt; x === nothing ? Block() : something(x)))</code></pre><p>We check the returned value of <code>fetching</code> outside reagent. If it is the <code>Closed</code> sentinel value, the exception is thrown:</p><pre><code class="language-julia hljs">function check_promise_closed(@nospecialize(value))
+    if value isa Closed
+        error(&quot;promise is closed&quot;)
+    end
+    return value
+end</code></pre><p>It is now straightforward to define the API mentioned above:</p><pre><code class="language-julia hljs">Base.fetch(p::Promise) = check_promise_closed(fetching(p)())
+
+Base.close(p::Promise) = closing(p)()
+Base.isopen(p::Promise) = !(p.value[] isa Closed)
+
+function Base.setindex!(p::Promise{T}, x) where {T}
+    x = convert(T, x)
+    if Reagents.trysync!(tryputting(p), x) === nothing
+        check_promise_closed(p.value[])
+        error(&quot;promise already has a value&quot;)
+    end
+end</code></pre><p>Since we defined underlying synchronization mechanisms as reagents, we can compose them. For example, to wait for two promises to be ready, we can use the combinator <code>&amp;</code>:</p><pre><code class="language-julia hljs">function test_promise_fetch_all()
+    p1 = Promise{Int}()
+    p2 = Promise{Int}()
+    t = @task (fetching(p1) &amp; fetching(p2))()
+    yield(t)
+    p1[] = 222
+    @test !istaskdone(t)
+    p2[] = 333
+    @test fetch(t) == (222, 333)
+end</code></pre><p>Or to wait for the first available promise, use <code>|</code></p><pre><code class="language-julia hljs">function test_promise_fetch_any()
+    p1 = Promise{Int}()
+    p2 = Promise{Int}()
+    t = @task (fetching(p1) | fetching(p2))()
+    yield(t)
+    p1[] = 444
+    @test fetch(t) == 444
+end</code></pre><h2 id="Future"><a class="docs-heading-anchor" href="#Future">Future</a><a id="Future-1"></a><a class="docs-heading-anchor-permalink" href="#Future" title="Permalink"></a></h2><p>Let us define a <code>Future</code> as a <code>Promise</code> and a thunk that generates the value to be stored in the <code>Promise</code>. That is to say, we&#39;d like to have the following API:</p><pre><code class="language-julia hljs">function test_future_fetch_calls_thunk()
+    thunk() = 111 + 222
+    f = Future{Int}(thunk)
+    @test fetch(f) == 333
+end</code></pre><p>Importantly, <code>Future(thunk)</code> calls <code>thunk</code> at most once.</p><pre><code class="language-julia hljs">function test_future_thunk_is_called_once()</code></pre><p>To define this behavior, consider that we have a <code>thunk</code> that has a side-effect (which is not an intended use-case but useful for describing the behavior):</p><pre><code class="language-julia hljs">    ncalled = Ref(0)
+    function thunk()
+        ncalled[] += 1
+        return 111 + 222
+    end
+    f = Future{Int}(thunk)</code></pre><p>The first <code>fetch</code> will call the <code>thunk</code>:</p><pre><code class="language-julia hljs">    ncalled[] = 0
+    @test fetch(f) == 333
+    @test ncalled[] == 1</code></pre><p>The Subsequent call to <code>fetch</code> does not call the <code>thunk</code> and uses the value internally stored:</p><pre><code class="language-julia hljs">    ncalled[] = 0
+    @test fetch(f) == 333
+    @test ncalled[] == 0
+end</code></pre><p>Like <code>Promise</code>, <code>fetch</code>ing <code>close</code>d <code>Future</code> throws an exception:</p><pre><code class="language-julia hljs">function test_future_close()
+    ncalled = Ref(0)
+    function thunk()
+        ncalled[] += 1
+        return 111 + 222
+    end
+    f = Future{Int}(thunk)
+    close(f)
+    @test_throws ErrorException(&quot;promise is closed&quot;) fetch(f)
+    @test_throws ErrorException(&quot;promise is closed&quot;) fetch(f)</code></pre><p>Furthermore, the thunk is not called when the future is <code>close</code>d before the first <code>fetch</code> call:</p><pre><code class="language-julia hljs">    @test ncalled[] == 0
+end</code></pre><h3 id="Implementing-Future"><a class="docs-heading-anchor" href="#Implementing-Future">Implementing <code>Future</code></a><a id="Implementing-Future-1"></a><a class="docs-heading-anchor-permalink" href="#Implementing-Future" title="Permalink"></a></h3><p>A <code>Future{T}</code> wraps a <code>Promise{T}</code> and a thunk that produces a value of type <code>T</code>. We also have an auxiliary state <code>started</code> tracking if the call to thunk is already started or not.</p><pre><code class="language-julia hljs">struct Future{T,F,Value&lt;:Promise{T}}
+    thunk::F
+    value::Value
+    started::Threads.Atomic{Bool}
+end
+
+Future(f) = Future{Any}(f)
+Future{T}(f) where {T} = Future(f, Promise{T}(), Threads.Atomic{Bool}(false))</code></pre><p>We also use this example to demonstrate that not all states have to be expressed through Reagents.jl API.  Here, we use a simple <code>Threads.Atomic{Bool}</code> flag for the <code>started</code> state.</p><p>The core functionality of <code>Future</code> is the ability to run the <code>thunk</code> (at most) once. Let us define an internal function that assures this invariance. The following function <code>tryrun!(f::Future)</code> returns <code>nothing</code> when the thunk is already called. Otherwise, it calls the thunk and then set its value. However, if there is a call to <code>close</code> before this function returns (i.e., setting the value to the promise failed), it also returns <code>nothing</code>. If it successfully sets the <code>value</code> to the promise, it returns <code>Some(nothing)</code>.</p><pre><code class="language-julia hljs">function tryrun!(f::Future{T}) where {T}
+    if Threads.atomic_cas!(f.started, false, true) === false
+        y = f.thunk()
+        y = convert(T, y)
+        # Set the value, if it hasn&#39;t been set:
+        if Reagents.trysync!(tryputting(f.value), y) === nothing
+            return nothing  # already closed
+        end
+        # Successfully stored the value:
+        return Some(y)
+    else
+        # Lost the race:
+        return nothing
+    end
+end</code></pre><p>We can then wrap this in a reagent. If the call to thunk is successfully, the computed value is returned as-is (<code>Return(something(y))</code>).  Otherwise,</p><pre><code class="language-julia hljs">fetching(f::Future) =
+    Computed() do _
+        # Optimization: if already closed, not need to call the thunk:
+        isopen(f.value) || return fetching(f.value)
+        # If still open, try to compute the value:
+        y = tryrun!(f)
+        if y === nothing
+            fetching(f.value)
+        else
+            Return(something(y))
+        end
+    end</code></pre><p>The future can be closed by simply closing the underlying promise:</p><pre><code class="language-julia hljs">closing(f::Future) = closing(f.value)</code></pre><p>Finally, we can wrap these reagents into the blocking API mentioned above:</p><pre><code class="language-julia hljs">Base.fetch(f::Future) = check_promise_closed(fetching(f)())
+Base.close(f::Future) = closing(f)()</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../nack/">« Negative acknowledgement (NACK)</a><a class="docs-footer-nextpage" href="../../reference/api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.5 on <span class="colophon-date" title="Monday 30 August 2021 00:47">Monday 30 August 2021</span>. Using Julia version 1.7.0-beta3.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
