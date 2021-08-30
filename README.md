@@ -13,7 +13,7 @@ the operations take place. This is similar to the `select` statement
 expressing rich [concurrency
 patterns](https://talks.golang.org/2012/concurrency.slide).  This is a form of
 the *selective communication* that are implemented by numerous other languages
-(and libraries²) such as Erlang ([`receive`
+(and libraries) such as Erlang ([`receive`
 expression](https://www.erlang.org/course/concurrent-programming)), occam
 ([`ALT` statement](https://en.wikipedia.org/wiki/Occam_(programming_language))),
 and Concurrent ML² ([`select`
