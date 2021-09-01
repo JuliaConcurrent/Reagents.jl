@@ -12,7 +12,7 @@ the operations take place. This is similar to the `select` statement
 [popularized by Go](https://tour.golang.org/concurrency/5) as a mechanism for
 expressing rich [concurrency
 patterns](https://talks.golang.org/2012/concurrency.slide).  This is a form of
-the *selective communication* that are implemented by numerous other languages
+the *selective communication* that is implemented by numerous other languages
 (and libraries) such as Erlang ([`receive`
 expression](https://www.erlang.org/course/concurrent-programming)), occam
 ([`ALT` statement](https://en.wikipedia.org/wiki/Occam_(programming_language))),
@@ -32,8 +32,8 @@ memory](https://en.wikipedia.org/wiki/Software_transactional_memory) mechanism.
 Reagents.jl is a foundation of [Julio.jl](https://github.com/tkf/Julio.jl), an
 implementation of [structured
 concurrency](https://en.wikipedia.org/wiki/Structured_concurrency) for Julia.
-Reagents.jl extends the original description of reagents (Turon, 2012) by adding
-more primitives such as `WithNack` from [Concurrent
+For supporting this, Reagents.jl extends the original description of reagents
+(Turon, 2012) by adding more primitives such as `WithNack` from [Concurrent
 ML](https://en.wikipedia.org/wiki/Concurrent_ML) (which is a natural extension
 due to the influence of Concurrent ML on reagents, as Turon (2012) noted).
 
