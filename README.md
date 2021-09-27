@@ -1,6 +1,6 @@
 # Reagents.jl: Towards composable and extensible nonblocking programming for Julia
 
-[![docs dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://tkf.github.io/Reagents.jl/dev)
+[![docs dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliaconcurrent.github.io/Reagents.jl/dev)
 
 Reagents.jl implements and extends *reagents* by Turon (2012). It provides
 higher-order concurrency primitives for expressing *nonblocking*¹ algorithms and
@@ -24,12 +24,12 @@ only supports selecting incoming
 messages](https://erlang.org/doc/reference_manual/expressions.html#receive),
 Reagents.jl's choice combinator supports arbitrary user-defined data structures.
 Furthermore, it provides other [combinators such as `⨟` and
-`&`](https://tkf.github.io/Reagents.jl/dev/reference/api/#Reagent-Combinators)
+`&`](https://juliaconcurrent.github.io/Reagents.jl/dev/reference/api/#Reagent-Combinators)
 for declaring atomicity of the operations, similar to the [software
 transactional
 memory](https://en.wikipedia.org/wiki/Software_transactional_memory) mechanism.
 
-Reagents.jl is a foundation of [Julio.jl](https://github.com/tkf/Julio.jl), an
+Reagents.jl is a foundation of [Julio.jl](https://github.com/JuliaConcurrent/Julio.jl), an
 implementation of [structured
 concurrency](https://en.wikipedia.org/wiki/Structured_concurrency) for Julia.
 For supporting this, Reagents.jl extends the original description of reagents
@@ -115,8 +115,8 @@ Here, the element in the stack `s1` is popped and then pushed to the stack `s2`
 *atomically*. Similar code works with arbitrary pair of containers, possibly
 of different types.
 
-For more examples, read [**the documentation**](https://tkf.github.io/Reagents.jl/dev)
-or see the [`examples` directory](https://github.com/tkf/Reagents.jl/tree/master/examples).
+For more examples, read [**the documentation**](https://juliaconcurrent.github.io/Reagents.jl/dev)
+or see the [`examples` directory](https://github.com/JuliaConcurrent/Reagents.jl/tree/master/examples).
 
 ## Resources
 
