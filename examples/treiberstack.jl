@@ -111,4 +111,4 @@ Base.pop!(stack::TreiberStack) = something(trypopping(stack)())
 # to be `push!`ed.
 #
 # For more usage examples, see
-# [`/test/ReagentsTests/src/test_treiberstack.jl`](https://github.com/tkf/Reagents.jl/blob/master/test/ReagentsTests/src/test_treiberstack.jl).
+# [`/test/ReagentsTests/src/test_treiberstack.jl`](https://github.com/JuliaConcurrent/Reagents.jl/blob/master/test/ReagentsTests/src/test_treiberstack.jl).
